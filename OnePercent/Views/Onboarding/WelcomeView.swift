@@ -1,0 +1,114 @@
+import SwiftUI
+
+struct WelcomeView: View {
+    let onContinue: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 40) {
+            Spacer()
+            
+            // Logo/Icon
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.pink, .purple],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 120, height: 120)
+                
+                Image(systemName: "message.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(.white)
+            }
+            
+            VStack(spacing: 16) {
+                Text("Welcome to OnePercent")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                
+                Text("AI-powered conversation starters\nfor your dating apps")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Spacer()
+            
+            // How it works
+            VStack(alignment: .leading, spacing: 20) {
+                FeatureRow(
+                    icon: "camera.viewfinder",
+                    title: "Import Profile Screenshots",
+                    description: "Capture their dating profile with screenshots"
+                )
+                
+                FeatureRow(
+                    icon: "sparkles",
+                    title: "AI Generates Messages",
+                    description: "Get personalized openers based on their profile"
+                )
+                
+                FeatureRow(
+                    icon: "keyboard",
+                    title: "Use Our Keyboard",
+                    description: "Quickly insert messages in any dating app"
+                )
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer()
+            
+            Button(action: onContinue) {
+                Text("Get Started")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.pink, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 40)
+        }
+    }
+}
+
+struct FeatureRow: View {
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: icon)
+                .font(.title2)
+                .foregroundStyle(.pink)
+                .frame(width: 44, height: 44)
+                .background(Color.pink.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+#Preview {
+    WelcomeView(onContinue: {})
+}
