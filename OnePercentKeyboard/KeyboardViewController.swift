@@ -10,9 +10,10 @@ class KeyboardViewController: UIInputViewController {
     private var hostingController: UIHostingController<KeyboardMainView>?
     private let store = MatchStore.shared
     
-    /// Whether the keyboard has full access (for networking)
-    override var hasFullAccess: Bool {
-        return UIPasteboard.general.hasStrings
+    /// Check if keyboard has full access (for networking)
+    private var keyboardHasFullAccess: Bool {
+        // In iOS 11+, we can check if the keyboard has open access
+        return self.hasFullAccess
     }
     
     // MARK: - Lifecycle
@@ -48,8 +49,7 @@ class KeyboardViewController: UIInputViewController {
             },
             onOpenApp: { [weak self] in
                 self?.openMainApp()
-            },
-            hasFullAccess: hasFullAccess
+            }
         )
         
         // Embed in hosting controller
