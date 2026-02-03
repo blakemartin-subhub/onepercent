@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { PROFILE_PARSING_PROMPT, MESSAGE_GENERATION_PROMPT } from '../prompts/index';
+import { PROFILE_PARSING_PROMPT, MESSAGE_GENERATION_PROMPT, CONVERSATION_FOLLOWUP_PROMPT } from '../prompts/index';
 import type { UserProfile, MatchProfile, ParsedProfile, GeneratedMessage } from '../types';
 
 // Lazy-initialize OpenAI client
@@ -59,7 +59,7 @@ export async function generateMessages(
     maxChars?: number;
     conversationContext?: string;
   } = {}
-): Promise<GeneratedMessage[]> {
+): Promise<{ messages: GeneratedMessage[]; reasoning?: string }> {
   const { tone = 'playful', maxChars = 300, conversationContext } = options;
 
   // Build the prompt with user and match context
@@ -67,16 +67,31 @@ export async function generateMessages(
   const matchContext = buildMatchContext(matchProfile);
   const constraints = buildConstraints(userProfile, maxChars);
 
-  const prompt = MESSAGE_GENERATION_PROMPT
-    .replace('{userProfile}', userContext)
-    .replace('{matchProfile}', matchContext)
-    .replace('{tone}', tone)
-    .replace('{maxChars}', maxChars.toString())
-    .replace('{additionalBoundaries}', constraints);
+  // Use conversation prompt if context is provided, otherwise use opener prompt
+  let prompt: string;
+  let userMessage: string;
 
-  const userMessage = conversationContext
-    ? `Generate messages. Current conversation context:\n${conversationContext}`
-    : 'Generate opener messages for this match.';
+  if (conversationContext && conversationContext.length > 50) {
+    // Use conversation follow-up prompt
+    prompt = CONVERSATION_FOLLOWUP_PROMPT
+      .replace('{userProfile}', userContext)
+      .replace('{matchProfile}', matchContext)
+      .replace('{conversationContext}', conversationContext)
+      .replace('{tone}', tone)
+      .replace(/\{additionalBoundaries\}/g, constraints);
+    
+    userMessage = 'Generate follow-up messages based on this conversation.';
+  } else {
+    // Use opener prompt
+    prompt = MESSAGE_GENERATION_PROMPT
+      .replace('{userProfile}', userContext)
+      .replace('{matchProfile}', matchContext)
+      .replace('{tone}', tone)
+      .replace('{maxChars}', maxChars.toString())
+      .replace('{additionalBoundaries}', constraints);
+    
+    userMessage = 'Generate opener messages for this match.';
+  }
 
   const response = await getOpenAI().chat.completions.create({
     model: 'gpt-4o', // Better quality for message generation
@@ -101,8 +116,11 @@ export async function generateMessages(
   }
 
   try {
-    const parsed = JSON.parse(content) as { messages: GeneratedMessage[] };
-    return parsed.messages || [];
+    const parsed = JSON.parse(content) as { messages: GeneratedMessage[]; reasoning?: string };
+    return {
+      messages: parsed.messages || [],
+      reasoning: parsed.reasoning
+    };
   } catch (error) {
     throw new Error('Failed to parse OpenAI response as JSON');
   }

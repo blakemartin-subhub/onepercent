@@ -62,17 +62,19 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
     console.log(`[message/generate] Generating messages for match: ${matchProfile.name || 'unknown'}`);
 
     // Generate messages using OpenAI
-    const messages = await generateMessages(
+    const result = await generateMessages(
       userProfile,
       matchProfile,
       { tone, maxChars, conversationContext }
     );
 
     // Add IDs to messages
-    const messagesWithIds = messages.map(msg => ({
+    const messagesWithIds = result.messages.map(msg => ({
       ...msg,
       id: uuidv4(),
     }));
+    
+    const reasoning = result.reasoning;
 
     // Run moderation on generated messages
     const moderatedMessages = await Promise.all(
@@ -115,7 +117,7 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
 
     console.log(`[message/generate] Successfully generated ${safeMessages.length} messages`);
 
-    return res.json({ messages: safeMessages });
+    return res.json({ messages: safeMessages, reasoning });
   } catch (error) {
     console.error('[message/generate] Error:', error);
     next(error);

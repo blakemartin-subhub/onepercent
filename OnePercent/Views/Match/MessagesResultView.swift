@@ -65,7 +65,7 @@ struct MessagesResultView: View {
                 }
                 
                 // Follow-ups
-                let followUps = messages.messages.filter { $0.type == .followUp }
+                let followUps = messages.messages.filter { $0.type == .followup }
                 if !followUps.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
@@ -201,7 +201,7 @@ struct MessageCard: View {
                 messages: [
                     GeneratedMessage(type: .opener, text: "Hey Emma! I noticed you're into hiking - what's been your favorite trail this year?"),
                     GeneratedMessage(type: .opener, text: "A fellow coffee enthusiast! Do you have a go-to order or are you more of an adventurous try-something-new type?"),
-                    GeneratedMessage(type: .followUp, text: "I'd love to hear more about your dog! What breed?")
+                    GeneratedMessage(type: .followup, text: "I'd love to hear more about your dog! What breed?")
                 ],
                 toneUsed: .playful
             ),

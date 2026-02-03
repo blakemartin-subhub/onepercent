@@ -31,7 +31,7 @@ actor KeyboardAPIClient {
         return try await post("/v1/profile/parse", body: request)
     }
     
-    /// Generate messages for a match
+    /// Generate messages for a match (new opener)
     func generateMessages(
         userProfile: UserProfile,
         matchProfile: MatchProfile
@@ -40,6 +40,22 @@ actor KeyboardAPIClient {
             userProfile: userProfile,
             matchProfile: matchProfile,
             conversationContext: nil
+        )
+        
+        let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)
+        return (response.messages, response.reasoning)
+    }
+    
+    /// Generate follow-up messages based on conversation context
+    func generateConversationMessages(
+        userProfile: UserProfile,
+        matchProfile: MatchProfile,
+        conversationContext: String
+    ) async throws -> (messages: [GeneratedMessage], reasoning: String?) {
+        let request = KeyboardGenerateMessagesRequest(
+            userProfile: userProfile,
+            matchProfile: matchProfile,
+            conversationContext: conversationContext
         )
         
         let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)

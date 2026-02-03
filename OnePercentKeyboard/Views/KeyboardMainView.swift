@@ -58,6 +58,13 @@ struct KeyboardMainView: View {
                 processSelectedVideo(item)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .processConversationVideo)) { notification in
+            if let userInfo = notification.userInfo,
+               let item = userInfo["item"] as? PhotosPickerItem,
+               let match = userInfo["match"] as? MatchProfile {
+                processConversationVideo(item, for: match)
+            }
+        }
     }
     
     @ViewBuilder
@@ -136,47 +143,47 @@ struct KeyboardMainView: View {
     // MARK: - Empty State
     
     private var emptyStateView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Spacer()
             
-            Image(systemName: "record.circle")
-                .font(.system(size: 36))
-                .foregroundStyle(.pink)
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(LinearGradient(colors: [.pink.opacity(0.2), .purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 70, height: 70)
+                
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.pink)
+            }
             
-            Text("Add a screen recording")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            Text("of the match's dating profile")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            VStack(spacing: 6) {
+                Text("Add Your First Match")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                Text("Screen record their dating profile")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             
             PhotosPicker(
                 selection: $selectedVideoItem,
                 matching: .videos
             ) {
-                HStack {
-                    Image(systemName: "plus.circle.fill")
-                    Text("Add Recording")
+                HStack(spacing: 8) {
+                    Image(systemName: "record.circle.fill")
+                    Text("Import Recording")
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
                 .background(
                     LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing)
                 )
                 .clipShape(Capsule())
             }
-            
-            // Full Access reminder
-            HStack(spacing: 4) {
-                Image(systemName: "exclamationmark.circle")
-                    .font(.caption2)
-                Text("Requires Full Access")
-                    .font(.caption2)
-            }
-            .foregroundStyle(.secondary)
             
             Spacer()
         }
@@ -186,42 +193,157 @@ struct KeyboardMainView: View {
     // MARK: - Match List
     
     private var matchListView: some View {
-        VStack(spacing: 12) {
-            // Add new recording button
-            PhotosPicker(
-                selection: $selectedVideoItem,
-                matching: .videos
-            ) {
-                HStack {
-                    Image(systemName: "record.circle")
-                        .foregroundStyle(.pink)
-                    Text("Add screen recording")
-                        .font(.subheadline)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(.pink)
+        VStack(spacing: 0) {
+            // Header with add button
+            HStack {
+                Text("Your Matches")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                PhotosPicker(
+                    selection: $selectedVideoItem,
+                    matching: .videos
+                ) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus")
+                            .font(.caption.weight(.bold))
+                        Text("New")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing)
+                    )
+                    .clipShape(Capsule())
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color(.systemGray5))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
             
-            // Existing matches
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
+            // Match cards - vertical list
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 8) {
                     ForEach(matches) { match in
-                        MatchChip(match: match) {
-                            selectMatch(match)
-                        }
+                        MatchRow(
+                            match: match,
+                            onTapMessages: { selectMatch(match) },
+                            onTapUpdate: { startConversationUpdate(for: match) }
+                        )
                     }
                 }
                 .padding(.horizontal, 12)
+                .padding(.bottom, 8)
             }
         }
-        .padding(.vertical, 8)
+    }
+    
+    // MARK: - Conversation Update
+    
+    @State private var matchForConversationUpdate: MatchProfile?
+    @State private var conversationVideoItem: PhotosPickerItem?
+    
+    private func startConversationUpdate(for match: MatchProfile) {
+        matchForConversationUpdate = match
+        // The PhotosPicker will be triggered by the row
+    }
+    
+    private func processConversationVideo(_ item: PhotosPickerItem, for match: MatchProfile) {
+        processingState = .loadingVideo
+        
+        Task {
+            do {
+                guard let video = try await item.loadTransferable(type: KeyboardVideoTransferable.self) else {
+                    throw KeyboardProcessingError.videoLoadFailed
+                }
+                
+                guard FileManager.default.fileExists(atPath: video.url.path) else {
+                    throw KeyboardProcessingError.videoLoadFailed
+                }
+                
+                await processConversationVideoFile(video.url, for: match)
+            } catch {
+                await MainActor.run {
+                    processingState = .error("Unable to load video")
+                    conversationVideoItem = nil
+                    matchForConversationUpdate = nil
+                }
+            }
+        }
+    }
+    
+    private func processConversationVideoFile(_ url: URL, for match: MatchProfile) async {
+        do {
+            // Phase 1: Extract frames & OCR
+            await MainActor.run { processingState = .extractingFrames(progress: 0) }
+            
+            let videoService = KeyboardVideoService()
+            let conversationText = try await videoService.extractTextFromVideo(at: url) { progress, _ in
+                Task { @MainActor in
+                    if progress < 0.5 {
+                        processingState = .extractingFrames(progress: progress * 2)
+                    } else {
+                        processingState = .runningOCR(progress: (progress - 0.5) * 2)
+                    }
+                }
+            }
+            
+            print("[Keyboard] Conversation OCR text length: \(conversationText.count)")
+            
+            // Phase 2: Generate follow-up messages with conversation context
+            guard let userProfile = MatchStore.shared.loadUserProfile() else {
+                throw KeyboardProcessingError.noUserProfile
+            }
+            
+            let name = match.name ?? "Match"
+            
+            for step in [ProcessingState.DraftingStep.analyzing, .finding, .crafting, .optimizing] {
+                await MainActor.run {
+                    processingState = .generatingMessages(name: name, step: step)
+                }
+                try await Task.sleep(nanoseconds: 500_000_000)
+            }
+            
+            let apiClient = KeyboardAPIClient.shared
+            let result = try await apiClient.generateConversationMessages(
+                userProfile: userProfile,
+                matchProfile: match,
+                conversationContext: conversationText
+            )
+            
+            // Save updated messages
+            let messageSet = GeneratedMessageSet(
+                matchId: match.matchId,
+                messages: result.messages,
+                toneUsed: userProfile.voiceTone
+            )
+            
+            MatchStore.shared.saveMessages(messageSet)
+            
+            // Show results
+            let sortedMessages = result.messages.sorted { ($0.order ?? 0) < ($1.order ?? 0) }
+            let messageTexts = sortedMessages.map { $0.text }
+            let reasoning = result.reasoning ?? "Based on your conversation"
+            
+            await MainActor.run {
+                currentMatch = match
+                processingState = .ready(messages: messageTexts, reasoning: reasoning)
+                conversationVideoItem = nil
+                matchForConversationUpdate = nil
+            }
+            
+        } catch {
+            print("[Keyboard] Conversation processing error: \(error)")
+            await MainActor.run {
+                processingState = .error(error.localizedDescription)
+                conversationVideoItem = nil
+                matchForConversationUpdate = nil
+            }
+        }
     }
     
     // MARK: - Data Loading
@@ -560,12 +682,17 @@ struct ResultsView: View {
     // MARK: - Confirmation Mode
     
     private var confirmationModeView: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Swipe right to confirm each")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Confirm messages")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text("Swipe right on each to confirm")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 
                 Spacer()
                 
@@ -577,10 +704,11 @@ struct ResultsView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
+            .padding(.bottom, 8)
             
-            // Messages stacked vertically
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 6) {
+            // Scrollable message list
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 8) {
                     ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
                         SwipeToConfirmPill(
                             text: message,
@@ -608,8 +736,9 @@ struct ResultsView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.bottom, 8)
             }
+            .frame(maxHeight: 180) // Fixed height for scroll area
         }
     }
     
@@ -668,27 +797,27 @@ struct SwipeToConfirmPill: View {
     let onConfirm: () -> Void
     
     @State private var offset: CGFloat = 0
-    @State private var isDragging = false
+    @State private var isHorizontalDrag = false
     
-    private let confirmThreshold: CGFloat = 80
+    private let confirmThreshold: CGFloat = 60
     
     var body: some View {
         ZStack(alignment: .leading) {
-            // Background (revealed when swiping)
+            // Background (revealed when swiping) - subtle gray
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.green)
                     .padding(.leading, 16)
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.green)
+            .background(Color(.systemGray5))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             
             // Foreground pill
             HStack(spacing: 10) {
-                // Order indicator
+                // Order indicator - green only when confirmed
                 Text("\(index)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
@@ -705,38 +834,48 @@ struct SwipeToConfirmPill: View {
                 
                 Spacer()
                 
-                // Confirmed indicator
+                // Swipe hint or confirmed indicator
                 if isConfirmed {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    // Swipe hint arrow
+                    Image(systemName: "arrow.right.circle")
+                        .font(.body)
+                        .foregroundStyle(.secondary.opacity(0.5))
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
             .offset(x: isConfirmed ? 0 : offset)
             .gesture(
-                isConfirmed ? nil : DragGesture()
+                isConfirmed ? nil : DragGesture(minimumDistance: 10)
                     .onChanged { value in
-                        if value.translation.width > 0 {
+                        // Only activate horizontal drag if moving more horizontally than vertically
+                        let horizontalAmount = abs(value.translation.width)
+                        let verticalAmount = abs(value.translation.height)
+                        
+                        // First movement determines if this is a horizontal or vertical gesture
+                        if !isHorizontalDrag && horizontalAmount > 15 && horizontalAmount > verticalAmount * 1.5 {
+                            isHorizontalDrag = true
+                        }
+                        
+                        // Only apply offset if this is a horizontal drag going right
+                        if isHorizontalDrag && value.translation.width > 0 {
                             offset = value.translation.width
-                            isDragging = true
                         }
                     }
                     .onEnded { value in
-                        isDragging = false
-                        if value.translation.width > confirmThreshold {
+                        if isHorizontalDrag && value.translation.width > confirmThreshold {
                             onConfirm()
                         }
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             offset = 0
                         }
+                        isHorizontalDrag = false
                     }
             )
         }
@@ -783,7 +922,92 @@ struct ErrorView: View {
     }
 }
 
-// MARK: - Match Chip
+// MARK: - Match Row (for vertical list)
+
+struct MatchRow: View {
+    let match: MatchProfile
+    let onTapMessages: () -> Void
+    let onTapUpdate: () -> Void
+    
+    @State private var showUpdatePicker = false
+    @State private var selectedVideo: PhotosPickerItem?
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Avatar
+            Circle()
+                .fill(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Text(match.name?.prefix(1).uppercased() ?? "?")
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                )
+            
+            // Name and info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(match.name ?? "Unknown")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                
+                if let interests = match.interests.first {
+                    Text(interests)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            
+            Spacer()
+            
+            // Action buttons
+            HStack(spacing: 8) {
+                // Update conversation button
+                PhotosPicker(selection: $selectedVideo, matching: .videos) {
+                    Image(systemName: "message.badge.filled.fill")
+                        .font(.body)
+                        .foregroundStyle(.orange)
+                        .frame(width: 36, height: 36)
+                        .background(Color.orange.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .onChange(of: selectedVideo) { _, newItem in
+                    if let item = newItem {
+                        // Trigger conversation update flow
+                        NotificationCenter.default.post(
+                            name: .processConversationVideo,
+                            object: nil,
+                            userInfo: ["item": item, "match": match]
+                        )
+                        selectedVideo = nil
+                    }
+                }
+                
+                // View saved messages button
+                Button(action: onTapMessages) {
+                    Image(systemName: "text.bubble.fill")
+                        .font(.body)
+                        .foregroundStyle(.pink)
+                        .frame(width: 36, height: 36)
+                        .background(Color.pink.opacity(0.15))
+                        .clipShape(Circle())
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+    }
+}
+
+// Notification for conversation video
+extension Notification.Name {
+    static let processConversationVideo = Notification.Name("processConversationVideo")
+}
+
+// MARK: - Match Chip (keeping for compatibility)
 
 struct MatchChip: View {
     let match: MatchProfile
