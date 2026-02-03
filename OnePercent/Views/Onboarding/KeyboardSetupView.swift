@@ -3,7 +3,7 @@ import SwiftUI
 struct KeyboardSetupView: View {
     let onContinue: () -> Void
     @State private var currentStep = 0
-    @State private var animatingStep = 0  // For the fill animation
+    @State private var animatingStep = 0
     @State private var hasCheckedKeyboard = false
     @State private var showingFullAccessWarning = false
     @State private var isAnimatingSequence = false
@@ -36,32 +36,39 @@ struct KeyboardSetupView: View {
     ]
     
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 0) {
             // Header
             VStack(spacing: 12) {
-                Image(systemName: "keyboard")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.pink)
+                ZStack {
+                    Circle()
+                        .fill(Brand.accentLight)
+                        .frame(width: 80, height: 80)
+                    
+                    Image(systemName: "keyboard")
+                        .font(.system(size: 32))
+                        .foregroundStyle(Brand.accent)
+                }
                 
                 Text("Enable Keyboard")
-                    .font(.title)
-                    .fontWeight(.bold)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Text("The keyboard is where all the magic happens")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
                     .multilineTextAlignment(.center)
             }
             .padding(.top, 40)
+            .padding(.bottom, 32)
             
             // Steps
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 ForEach(steps.indices, id: \.self) { index in
                     SetupStepRow(
                         step: steps[index],
                         isActive: index == currentStep || index == animatingStep,
                         isCompleted: index < animatingStep,
-                        isRequired: index == 2 && index >= animatingStep // Full Access step
+                        isRequired: index == 2 && index >= animatingStep
                     )
                     .onTapGesture {
                         if !isAnimatingSequence {
@@ -72,40 +79,41 @@ struct KeyboardSetupView: View {
                     }
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             
             Spacer()
             
-            // Why Full Access is Required
+            // Why Full Access
             VStack(spacing: 12) {
                 HStack(spacing: 6) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text("Full Access is Required")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                    Image(systemName: "shield.checkered")
+                        .foregroundStyle(Brand.accent)
+                    Text("Why Full Access?")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Brand.textPrimary)
                 }
                 
-                VStack(alignment: .leading, spacing: 6) {
-                    RequirementRow(icon: "photo", text: "Access your photo library to import recordings")
-                    RequirementRow(icon: "network", text: "Connect to AI for message generation")
-                    RequirementRow(icon: "cpu", text: "Process videos directly in the keyboard")
+                VStack(alignment: .leading, spacing: 8) {
+                    RequirementRow(icon: "photo", text: "Access your photo library")
+                    RequirementRow(icon: "network", text: "Connect to AI for messages")
+                    RequirementRow(icon: "cpu", text: "Process videos in keyboard")
                 }
-                .padding(.horizontal, 8)
                 
                 HStack(spacing: 6) {
                     Image(systemName: "lock.shield.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Brand.success)
                     Text("We never log keystrokes or read your messages")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                 }
                 .padding(.top, 4)
             }
-            .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, 24)
+            .padding(16)
+            .background(Brand.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+            .padding(.horizontal, 20)
+            
+            Spacer()
             
             // Buttons
             VStack(spacing: 12) {
@@ -114,41 +122,25 @@ struct KeyboardSetupView: View {
                         Image(systemName: "gear")
                         Text("Open Settings")
                     }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .buttonStyle(.brandPrimary)
                 
-                // Quick path hint
-                Text("Then: General → Keyboard → Keyboards → Add New Keyboard")
+                Text("General → Keyboard → Keyboards → Add New Keyboard")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textMuted)
                 
                 Button(action: verifyAndContinue) {
                     HStack {
                         Text("I've Enabled Full Access")
                         Image(systemName: "checkmark.circle")
                     }
-                    .font(.headline)
-                    .foregroundStyle(.pink)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Color.pink.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
+                .buttonStyle(.brandSecondary)
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
             .padding(.bottom, 40)
         }
+        .background(Brand.background)
         .alert("Full Access Required", isPresented: $showingFullAccessWarning) {
             Button("Open Settings") {
                 openKeyboardSettings()
@@ -157,15 +149,14 @@ struct KeyboardSetupView: View {
                 onContinue()
             }
         } message: {
-            Text("Without Full Access enabled, the keyboard won't be able to access your photos or generate messages. Are you sure you want to continue?")
+            Text("Without Full Access enabled, the keyboard won't be able to access your photos or generate messages.")
         }
     }
     
     private func openKeyboardSettings() {
-        // Animate the step sequence before opening settings
         isAnimatingSequence = true
         
-        // Step 1 is already highlighted, animate step 2
+        // Animate step 2
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             withAnimation(.easeInOut(duration: 0.2)) {
                 animatingStep = 2
@@ -179,12 +170,10 @@ struct KeyboardSetupView: View {
             }
         }
         
-        // After animation sequence (0.75s), open settings and schedule step 4 fill
+        // Open settings and fill step 4
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-            // Open settings
             actuallyOpenSettings()
             
-            // Fill step 4 after 2 seconds (simulating user completing the steps)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     animatingStep = 4
@@ -195,10 +184,9 @@ struct KeyboardSetupView: View {
     }
     
     private func actuallyOpenSettings() {
-        // Try different URL schemes for keyboard settings (iOS version dependent)
         let keyboardURLs = [
-            "prefs:root=General&path=Keyboard/KEYBOARDS",  // iOS 15+
-            "App-prefs:root=General&path=Keyboard/KEYBOARDS",  // Older iOS
+            "prefs:root=General&path=Keyboard/KEYBOARDS",
+            "App-prefs:root=General&path=Keyboard/KEYBOARDS",
             "App-prefs:General&path=Keyboard/KEYBOARDS"
         ]
         
@@ -210,16 +198,12 @@ struct KeyboardSetupView: View {
             }
         }
         
-        // Fallback: Open the app's own settings page
-        // This shows our keyboard extension if it's installed
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
         }
     }
     
     private func verifyAndContinue() {
-        // Check if keyboard likely has full access
-        // Note: There's no direct API to check this, so we show a warning
         if !hasCheckedKeyboard {
             hasCheckedKeyboard = true
             showingFullAccessWarning = true
@@ -237,12 +221,12 @@ struct RequirementRow: View {
         HStack(spacing: 10) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundStyle(.pink)
+                .foregroundStyle(Brand.accent)
                 .frame(width: 20)
             
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Brand.textPrimary)
             
             Spacer()
         }
@@ -264,30 +248,29 @@ struct SetupStepRow: View {
     var isRequired: Bool = false
     
     var body: some View {
-        HStack(spacing: 16) {
-            // Step number/checkmark
+        HStack(spacing: 14) {
+            // Step indicator
             ZStack {
                 Circle()
-                    .fill(isCompleted ? Color.green : (isActive ? Color.pink : Color(.systemGray4)))
+                    .fill(isCompleted ? Brand.success : (isActive ? Brand.accent : Brand.border))
                     .frame(width: 36, height: 36)
                 
                 if isCompleted {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundStyle(.white)
                 } else {
                     Text("\(step.number)")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(isActive ? .white : .secondary)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(isActive ? .white : Brand.textMuted)
                 }
             }
             
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(step.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(isActive ? .primary : .secondary)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(isActive || isCompleted ? Brand.textPrimary : Brand.textSecondary)
                     
                     if isRequired && !isCompleted {
                         Text("REQUIRED")
@@ -295,24 +278,25 @@ struct SetupStepRow: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color.orange)
+                            .background(Brand.warning)
                             .clipShape(Capsule())
                     }
                 }
                 
                 Text(step.description)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textMuted)
             }
             
             Spacer()
             
             Image(systemName: step.icon)
-                .foregroundStyle(isActive ? .pink : .secondary)
+                .font(.subheadline)
+                .foregroundStyle(isActive || isCompleted ? Brand.accent : Brand.textMuted)
         }
-        .padding()
-        .background(isActive ? Color.pink.opacity(0.05) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(12)
+        .background(isActive ? Brand.accentLight.opacity(0.5) : Color.clear)
+        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
     }
 }
 

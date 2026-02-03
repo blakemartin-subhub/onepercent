@@ -4,87 +4,73 @@ struct WelcomeView: View {
     let onContinue: () -> Void
     
     var body: some View {
-        VStack(spacing: 40) {
+        VStack(spacing: 0) {
             Spacer()
             
             // Logo/Icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 120, height: 120)
+            VStack(spacing: 24) {
+                ZStack {
+                    Circle()
+                        .fill(Brand.gradient)
+                        .frame(width: 100, height: 100)
+                    
+                    Text("1%")
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
                 
-                Image(systemName: "keyboard.fill")
-                    .font(.system(size: 50))
-                    .foregroundStyle(.white)
-            }
-            
-            VStack(spacing: 16) {
-                Text("Welcome to OnePercent")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("Your AI dating assistant\nlives in your keyboard")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 8) {
+                    Text("OnePercent")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundStyle(Brand.textPrimary)
+                    
+                    Text("Your AI dating wingman")
+                        .font(.title3)
+                        .foregroundStyle(Brand.textSecondary)
+                }
             }
             
             Spacer()
             
-            // How it works - keyboard centric
-            VStack(alignment: .leading, spacing: 20) {
+            // Features
+            VStack(spacing: 16) {
                 FeatureRow(
                     icon: "keyboard",
-                    title: "Works Right in Your Keyboard",
-                    description: "No app switching - everything happens while you chat"
+                    title: "Works in Your Keyboard",
+                    description: "No app switching needed"
                 )
                 
                 FeatureRow(
-                    icon: "record.circle",
-                    title: "Drop a Screen Recording",
-                    description: "Record their profile, upload from the keyboard"
+                    icon: "video.fill",
+                    title: "Screen Record Profiles",
+                    description: "AI analyzes their interests"
                 )
                 
                 FeatureRow(
                     icon: "sparkles",
-                    title: "Get Perfect Openers Instantly",
-                    description: "AI crafts personalized messages in seconds"
+                    title: "Perfect Openers",
+                    description: "Personalized messages in seconds"
                 )
                 
                 FeatureRow(
                     icon: "paperplane.fill",
-                    title: "Send with One Tap",
-                    description: "Insert messages directly into any dating app"
+                    title: "Send Instantly",
+                    description: "One tap to insert"
                 )
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 32)
             
             Spacer()
             
+            // CTA Button
             Button(action: onContinue) {
                 Text("Get Started")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .buttonStyle(.brandPrimary)
             .padding(.horizontal, 24)
-            .padding(.bottom, 40)
+            .padding(.bottom, 48)
         }
+        .background(Brand.background)
     }
 }
 
@@ -96,21 +82,23 @@ struct FeatureRow: View {
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(.pink)
+                .font(.title3)
+                .foregroundStyle(Brand.accent)
                 .frame(width: 44, height: 44)
-                .background(Color.pink.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .background(Brand.accentLight)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSmall))
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Text(description)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
             }
+            
+            Spacer()
         }
     }
 }

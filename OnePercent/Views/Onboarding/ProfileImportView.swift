@@ -25,62 +25,63 @@ struct ProfileImportView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(LinearGradient(colors: [.pink.opacity(0.2), .purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .fill(Brand.accentLight)
                             .frame(width: 80, height: 80)
                         
                         Image(systemName: "person.text.rectangle")
-                            .font(.system(size: 36))
-                            .foregroundStyle(.pink)
+                            .font(.system(size: 32))
+                            .foregroundStyle(Brand.accent)
                     }
                     
                     Text("Import Your Profile")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(Brand.textPrimary)
                     
                     Text("Upload your dating profile for\npersonalized message generation")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                         .multilineTextAlignment(.center)
                 }
-                .padding(.top, 40)
+                .padding(.top, 32)
                 
                 // Upload options
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     // Screen recording option
                     PhotosPicker(
                         selection: $selectedVideoItem,
                         matching: .videos
                     ) {
-                        HStack(spacing: 16) {
+                        HStack(spacing: 14) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.pink.opacity(0.1))
-                                    .frame(width: 50, height: 50)
+                                    .fill(Brand.accentLight)
+                                    .frame(width: 48, height: 48)
                                 
                                 Image(systemName: "record.circle")
-                                    .font(.title2)
-                                    .foregroundStyle(.pink)
+                                    .font(.title3)
+                                    .foregroundStyle(Brand.accent)
                             }
                             
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text("Screen Recording")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.primary)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Brand.textPrimary)
                                 
                                 Text("Record scrolling through your profile")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Brand.textSecondary)
                             }
                             
                             Spacer()
                             
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                                .foregroundStyle(Brand.textMuted)
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(16)
+                        .background(Brand.card)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
+                        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
                     }
                     
                     // Screenshots option
@@ -89,105 +90,112 @@ struct ProfileImportView: View {
                         maxSelectionCount: 10,
                         matching: .images
                     ) {
-                        HStack(spacing: 16) {
+                        HStack(spacing: 14) {
                             ZStack {
                                 Circle()
-                                    .fill(Color.purple.opacity(0.1))
-                                    .frame(width: 50, height: 50)
+                                    .fill(Brand.accentLight)
+                                    .frame(width: 48, height: 48)
                                 
                                 Image(systemName: "photo.on.rectangle")
-                                    .font(.title2)
-                                    .foregroundStyle(.purple)
+                                    .font(.title3)
+                                    .foregroundStyle(Brand.accent)
                             }
                             
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text("Screenshots")
-                                    .font(.subheadline)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.primary)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Brand.textPrimary)
                                 
                                 Text("Select screenshots of your profile")
                                     .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Brand.textSecondary)
                             }
                             
                             Spacer()
                             
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(.secondary)
+                                .font(.subheadline)
+                                .foregroundStyle(Brand.textMuted)
                         }
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .padding(16)
+                        .background(Brand.card)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
+                        .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 
                 // Processing state
-                switch processingState {
-                case .idle:
-                    EmptyView()
-                    
-                case .processing(let progress):
-                    VStack(spacing: 12) {
-                        ProgressView(value: progress)
-                            .tint(.pink)
+                Group {
+                    switch processingState {
+                    case .idle:
+                        EmptyView()
                         
-                        Text("Analyzing your profile...")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 24)
-                    
-                case .success:
-                    VStack(spacing: 12) {
-                        HStack(spacing: 8) {
+                    case .processing(let progress):
+                        VStack(spacing: 12) {
+                            ProgressView(value: progress)
+                                .tint(Brand.accent)
+                            
+                            Text("Analyzing your profile...")
+                                .font(.caption)
+                                .foregroundStyle(Brand.textSecondary)
+                        }
+                        .padding(16)
+                        .background(Brand.backgroundSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                        .padding(.horizontal, 20)
+                        
+                    case .success:
+                        HStack(spacing: 12) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                            Text("Profile imported successfully!")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
+                                .font(.title2)
+                                .foregroundStyle(Brand.success)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Profile imported!")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Brand.textPrimary)
+                                
+                                Text("AI will use this for personalized messages")
+                                    .font(.caption)
+                                    .foregroundStyle(Brand.textSecondary)
+                            }
+                            
+                            Spacer()
                         }
+                        .padding(16)
+                        .background(Brand.success.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                        .padding(.horizontal, 20)
                         
-                        Text("AI will use your bio, prompts, and photos to write authentic messages")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding()
-                    .background(Color.green.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 24)
-                    
-                case .error(let message):
-                    VStack(spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(message)
-                                .font(.subheadline)
+                    case .error(let message):
+                        VStack(spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(Brand.warning)
+                                Text(message)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Brand.textPrimary)
+                            }
+                            
+                            Button("Try Again") {
+                                processingState = .idle
+                            }
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(Brand.accent)
                         }
-                        
-                        Button("Try Again") {
-                            processingState = .idle
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.pink)
+                        .padding(16)
+                        .background(Brand.warning.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                        .padding(.horizontal, 20)
                     }
-                    .padding()
-                    .background(Color.orange.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 24)
                 }
                 
                 // Benefits
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Why import your profile?")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Brand.textPrimary)
                     
                     VStack(alignment: .leading, spacing: 8) {
                         BenefitRow(icon: "sparkles", text: "Messages match your personality")
@@ -196,10 +204,10 @@ struct ProfileImportView: View {
                         BenefitRow(icon: "wand.and.stars", text: "More authentic conversation starters")
                     }
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 24)
+                .padding(16)
+                .background(Brand.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                .padding(.horizontal, 20)
                 
                 Spacer().frame(height: 20)
                 
@@ -219,32 +227,22 @@ struct ProfileImportView: View {
                                 Text("Skip for Now")
                             }
                         }
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
                     }
+                    .buttonStyle(.brandPrimary)
                     
                     if case .success = processingState {
                         // Already shows continue
                     } else {
                         Text("You can import your profile later in settings")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Brand.textMuted)
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
         }
+        .background(Brand.background)
         .onChange(of: selectedVideoItem) { _, newItem in
             if let item = newItem {
                 processVideo(item)
@@ -262,12 +260,10 @@ struct ProfileImportView: View {
         
         Task {
             do {
-                // Load video data
                 guard let video = try await item.loadTransferable(type: VideoTransferable.self) else {
                     throw ImportError.loadFailed
                 }
                 
-                // Extract text using OCR
                 let videoService = VideoProcessingService()
                 let text = try await videoService.extractTextFromVideo(at: video.url) { progress, _ in
                     Task { @MainActor in
@@ -338,12 +334,12 @@ struct BenefitRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.caption)
-                .foregroundStyle(.pink)
+                .foregroundStyle(Brand.accent)
                 .frame(width: 20)
             
             Text(text)
                 .font(.caption)
-                .foregroundStyle(.primary)
+                .foregroundStyle(Brand.textPrimary)
             
             Spacer()
         }

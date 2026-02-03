@@ -40,6 +40,8 @@
 		KBAPI000000000000000002 /* KeyboardAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBAPI000000000000000001 /* KeyboardAPIClient.swift */; };
 		KBOCR000000000000000002 /* KeyboardOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBOCR000000000000000001 /* KeyboardOCRService.swift */; };
 		KBVID000000000000000002 /* KeyboardVideoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBVID000000000000000001 /* KeyboardVideoService.swift */; };
+		BRAND0000000000000000002 /* Brand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BRAND0000000000000000001 /* Brand.swift */; };
+		KBBRAND00000000000000002 /* KeyboardBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBBRAND00000000000000001 /* KeyboardBrand.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -113,6 +115,8 @@
 		KBAPI000000000000000001 /* KeyboardAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAPIClient.swift; sourceTree = "<group>"; };
 		KBOCR000000000000000001 /* KeyboardOCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardOCRService.swift; sourceTree = "<group>"; };
 		KBVID000000000000000001 /* KeyboardVideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardVideoService.swift; sourceTree = "<group>"; };
+		BRAND0000000000000000001 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
+		KBBRAND00000000000000001 /* KeyboardBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardBrand.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -234,6 +238,7 @@
 			isa = PBXGroup;
 			children = (
 				037379BD8D4948746B6AAEC4 /* Info.plist */,
+				KBBRAND00000000000000001 /* KeyboardBrand.swift */,
 				CFAC7C0C2BA2202264DC1200 /* KeyboardViewController.swift */,
 				8AFFF0E6173A1826E749DCF9 /* OnePercentKeyboard.entitlements */,
 				KBSVC000000000000000001 /* Services */,
@@ -245,6 +250,7 @@
 		CFC33F25F771A1A7181D4462 /* OnePercent */ = {
 			isa = PBXGroup;
 			children = (
+				BRAND0000000000000000001 /* Brand.swift */,
 				4EFC93C7FDE19492DDA064C0 /* Info.plist */,
 				BBC29AC92033E86F63CE96AD /* OnePercent.entitlements */,
 				6D095CEF65053A06DFAA0371 /* App */,
@@ -439,6 +445,7 @@
 				7FD8E9DB63064AD4225552CC /* SettingsView.swift in Sources */,
 				7FE68132E214CEFA907A194F /* VideoProcessingService.swift in Sources */,
 				ABC70245347574EB41861DE9 /* WelcomeView.swift in Sources */,
+				BRAND0000000000000000002 /* Brand.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -451,6 +458,7 @@
 				KBVID000000000000000002 /* KeyboardVideoService.swift in Sources */,
 				A65FB1AC38DBA328C5BF75B9 /* KeyboardMainView.swift in Sources */,
 				65765EC28DCA7D8468F12CBB /* KeyboardViewController.swift in Sources */,
+				KBBRAND00000000000000002 /* KeyboardBrand.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

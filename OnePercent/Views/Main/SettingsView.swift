@@ -13,40 +13,33 @@ struct SettingsView: View {
             Section {
                 if let profile = appState.userProfile {
                     HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [.pink, .purple],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 60, height: 60)
-                            
-                            Text(profile.displayName.prefix(1).uppercased())
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundStyle(.white)
-                        }
+                        Circle()
+                            .fill(Brand.gradient)
+                            .frame(width: 56, height: 56)
+                            .overlay(
+                                Text(profile.displayName.prefix(1).uppercased())
+                                    .font(.title3.weight(.bold))
+                                    .foregroundStyle(.white)
+                            )
                         
                         VStack(alignment: .leading, spacing: 4) {
                             Text(profile.displayName)
                                 .font(.headline)
+                                .foregroundStyle(Brand.textPrimary)
                             
-                            Text("\(profile.voiceTone.displayName) • \(profile.emojiStyle.displayName)")
+                            Text("\(profile.voiceTone.displayName) · \(profile.emojiStyle.displayName)")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Brand.textSecondary)
                         }
                         
                         Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.subheadline)
+                            .foregroundStyle(Brand.textMuted)
                     }
                     .contentShape(Rectangle())
                     .onTapGesture { showEditProfile = true }
-                }
-                
-                Button(action: { showEditProfile = true }) {
-                    Label("Edit Profile", systemImage: "pencil")
                 }
             } header: {
                 Text("Profile")
@@ -55,29 +48,52 @@ struct SettingsView: View {
             // Keyboard Section
             Section {
                 Button(action: openKeyboardSettings) {
-                    Label("Keyboard Settings", systemImage: "keyboard")
+                    HStack {
+                        Label("Keyboard Settings", systemImage: "keyboard")
+                            .foregroundStyle(Brand.textPrimary)
+                        Spacer()
+                        Image(systemName: "arrow.up.forward")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textMuted)
+                    }
                 }
                 
                 HStack {
                     Label("Full Access", systemImage: "lock.open")
+                        .foregroundStyle(Brand.textPrimary)
                     Spacer()
                     Text(hasFullAccess ? "Enabled" : "Disabled")
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                        .foregroundStyle(hasFullAccess ? Brand.success : Brand.textMuted)
                 }
             } header: {
                 Text("Keyboard")
             } footer: {
-                Text("Full Access enables AI message regeneration directly from the keyboard.")
+                Text("Full Access enables AI message generation directly from the keyboard.")
             }
             
             // Privacy Section
             Section {
                 Button(action: { showPrivacyInfo = true }) {
-                    Label("Privacy Info", systemImage: "hand.raised")
+                    HStack {
+                        Label("Privacy Info", systemImage: "hand.raised")
+                            .foregroundStyle(Brand.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textMuted)
+                    }
                 }
                 
                 Link(destination: URL(string: "https://onepercent.app/privacy")!) {
-                    Label("Privacy Policy", systemImage: "doc.text")
+                    HStack {
+                        Label("Privacy Policy", systemImage: "doc.text")
+                            .foregroundStyle(Brand.textPrimary)
+                        Spacer()
+                        Image(systemName: "arrow.up.forward")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textMuted)
+                    }
                 }
             } header: {
                 Text("Privacy")
@@ -87,13 +103,16 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Label("Matches", systemImage: "heart.fill")
+                        .foregroundStyle(Brand.textPrimary)
                     Spacer()
                     Text("\(appState.matches.count)")
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                        .foregroundStyle(Brand.textSecondary)
                 }
                 
                 Button(role: .destructive, action: { showDeleteConfirmation = true }) {
                     Label("Delete All Data", systemImage: "trash")
+                        .foregroundStyle(Brand.error)
                 }
             } header: {
                 Text("Data")
@@ -105,15 +124,19 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Label("Version", systemImage: "info.circle")
+                        .foregroundStyle(Brand.textPrimary)
                     Spacer()
                     Text(Bundle.main.appVersion)
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                        .foregroundStyle(Brand.textSecondary)
                 }
             } header: {
                 Text("About")
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle("Settings")
+        .tint(Brand.accent)
         .sheet(isPresented: $showEditProfile) {
             NavigationStack {
                 EditProfileView()
@@ -133,8 +156,6 @@ struct SettingsView: View {
     }
     
     private var hasFullAccess: Bool {
-        // Check if keyboard has full access enabled
-        // This is a simplified check
         return UIPasteboard.general.hasStrings
     }
     
@@ -159,7 +180,7 @@ struct PrivacyInfoSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
                     PrivacyItem(
                         icon: "photo.on.rectangle",
                         title: "Screenshots Stay on Device",
@@ -190,13 +211,15 @@ struct PrivacyInfoSheet: View {
                         description: "Delete all your data at any time from Settings. We don't keep backups of your personal information."
                     )
                 }
-                .padding(24)
+                .padding(20)
             }
+            .background(Brand.background)
             .navigationTitle("Privacy")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .foregroundStyle(Brand.accent)
                 }
             }
         }
@@ -209,21 +232,22 @@ struct PrivacyItem: View {
     let description: String
     
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 14) {
             Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(.pink)
+                .font(.title3)
+                .foregroundStyle(Brand.accent)
                 .frame(width: 44, height: 44)
-                .background(Color.pink.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .background(Brand.accentLight)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusSmall))
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.headline)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(Brand.textSecondary)
             }
         }
     }
@@ -285,12 +309,14 @@ struct EditProfileView: View {
         }
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
+        .tint(Brand.accent)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { saveProfile() }
+                    .fontWeight(.semibold)
             }
         }
         .onAppear {

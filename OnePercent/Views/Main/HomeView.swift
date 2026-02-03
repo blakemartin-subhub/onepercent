@@ -9,35 +9,72 @@ struct HomeView: View {
     @State private var selectedMatch: MatchProfile?
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Action buttons
-                    actionButtonsSection
-                    
-                    // Saved matches
-                    if !matches.isEmpty {
-                        savedMatchesSection
-                    } else {
-                        emptyStateSection
-                    }
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header
+                headerSection
+                
+                // Action buttons
+                actionButtonsSection
+                
+                // Saved matches
+                if !matches.isEmpty {
+                    savedMatchesSection
+                } else {
+                    emptyStateSection
                 }
-                .padding()
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("OnePercent")
-            .onAppear(perform: loadMatches)
-            .sheet(isPresented: $showingNewMatch, onDismiss: loadMatches) {
-                NewMatchView()
-            }
-            .navigationDestination(item: $selectedMatch) { match in
-                MatchProfileDetailView(
-                    match: match,
-                    userProfile: appState.userProfile,
-                    messages: MatchStore.shared.loadMessages(for: match.id)
-                )
+            .padding(.horizontal, 20)
+            .padding(.top, 16)
+        }
+        .background(Brand.backgroundSecondary)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("OnePercent")
+                    .font(.headline)
+                    .foregroundStyle(Brand.textPrimary)
             }
         }
+        .onAppear(perform: loadMatches)
+        .sheet(isPresented: $showingNewMatch, onDismiss: loadMatches) {
+            NewMatchView()
+        }
+        .navigationDestination(item: $selectedMatch) { match in
+            MatchProfileDetailView(
+                match: match,
+                userProfile: appState.userProfile,
+                messages: MatchStore.shared.loadMessages(for: match.id)
+            )
+        }
+    }
+    
+    // MARK: - Header
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Welcome back")
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.textSecondary)
+                
+                Text(appState.userProfile?.displayName ?? "there")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(Brand.textPrimary)
+            }
+            
+            Spacer()
+            
+            // Profile avatar
+            Circle()
+                .fill(Brand.gradient)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Text(appState.userProfile?.displayName.prefix(1).uppercased() ?? "?")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                )
+        }
+        .padding(.bottom, 8)
     }
     
     // MARK: - Action Buttons
@@ -48,67 +85,34 @@ struct HomeView: View {
                 HStack(spacing: 16) {
                     ZStack {
                         Circle()
-                            .fill(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .frame(width: 50, height: 50)
+                            .fill(Brand.gradient)
+                            .frame(width: 48, height: 48)
                         
-                        Image(systemName: "record.circle")
-                            .font(.title2)
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.semibold))
                             .foregroundStyle(.white)
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Add New Profile")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Add New Match")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Brand.textPrimary)
                         
-                        Text("Drop a screen recording of their profile")
+                        Text("Screen record their dating profile")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Brand.textSecondary)
                     }
                     
                     Spacer()
                     
                     Image(systemName: "chevron.right")
-                        .foregroundStyle(.secondary)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Brand.textMuted)
                 }
-                .padding()
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-            }
-            
-            // Update existing profile
-            if !matches.isEmpty {
-                Button(action: { /* TODO: Update flow */ }) {
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(.systemGray5))
-                                .frame(width: 50, height: 50)
-                            
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                                .font(.title2)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Update Previous Profiles")
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            
-                            Text("Add more context or regenerate messages")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Image(systemName: "chevron.right")
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                }
+                .padding(16)
+                .background(Brand.card)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
+                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
             }
         }
     }
@@ -118,16 +122,17 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Text("Your Matches")
-                    .font(.title2.weight(.bold))
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Spacer()
                 
                 Text("\(matches.count)")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .background(Color.pink.opacity(0.1))
-                    .foregroundStyle(.pink)
+                    .background(Brand.accentLight)
+                    .foregroundStyle(Brand.accent)
                     .clipShape(Capsule())
             }
             
@@ -141,25 +146,31 @@ struct HomeView: View {
     
     // MARK: - Empty State
     private var emptyStateSection: some View {
-        VStack(spacing: 16) {
-            Spacer()
-                .frame(height: 40)
+        VStack(spacing: 20) {
+            Spacer().frame(height: 40)
             
-            Image(systemName: "heart.text.square")
-                .font(.system(size: 60))
-                .foregroundStyle(.secondary.opacity(0.5))
+            ZStack {
+                Circle()
+                    .fill(Brand.accentLight)
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "heart.text.square")
+                    .font(.system(size: 32))
+                    .foregroundStyle(Brand.accent)
+            }
             
-            Text("No matches yet")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(.secondary)
+            VStack(spacing: 8) {
+                Text("No matches yet")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Brand.textPrimary)
+                
+                Text("Add a screen recording of someone's\nprofile to get started")
+                    .font(.subheadline)
+                    .foregroundStyle(Brand.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
             
-            Text("Add a screen recording of someone's\nprofile to get started")
-                .font(.subheadline)
-                .foregroundStyle(.secondary.opacity(0.8))
-                .multilineTextAlignment(.center)
-            
-            Spacer()
-                .frame(height: 40)
+            Spacer().frame(height: 40)
         }
     }
     
@@ -174,73 +185,63 @@ struct MatchCard: View {
     let match: MatchProfile
     let onTap: () -> Void
     
-    // Random compatibility score
-    private var compatibilityScore: Int {
-        let seed = match.id.hashValue
-        srand48(seed)
-        return Int(drand48() * 42) + 32
-    }
-    
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 // Avatar
                 Circle()
-                    .fill(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 56, height: 56)
+                    .fill(Brand.gradient)
+                    .frame(width: 52, height: 52)
                     .overlay(
                         Text(match.name?.prefix(1).uppercased() ?? "?")
-                            .font(.title2.weight(.bold))
+                            .font(.title3.weight(.bold))
                             .foregroundStyle(.white)
                     )
                 
                 // Info
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack {
+                    HStack(spacing: 6) {
                         Text(match.name ?? "Unknown")
-                            .font(.headline)
-                            .foregroundStyle(.primary)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Brand.textPrimary)
                         
                         if let age = match.age {
-                            Text("• \(age)")
+                            Text("\(age)")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Brand.textSecondary)
                         }
                     }
                     
                     // Interests preview
                     if !match.interests.isEmpty {
-                        Text(match.interests.prefix(3).joined(separator: " • "))
+                        Text(match.interests.prefix(2).joined(separator: " · "))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Brand.textSecondary)
                             .lineLimit(1)
                     }
-                    
-                    // Compatibility badge
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                        Text("\(compatibilityScore)% match")
-                            .font(.caption.weight(.medium))
-                    }
-                    .foregroundStyle(.pink)
                 }
                 
                 Spacer()
                 
-                // Messages indicator
-                VStack(alignment: .trailing, spacing: 4) {
-                    Image(systemName: "bubble.left.fill")
-                        .foregroundStyle(.green)
+                // Ready indicator
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Brand.success)
+                        .frame(width: 8, height: 8)
                     
                     Text("Ready")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Brand.success)
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Brand.success.opacity(0.1))
+                .clipShape(Capsule())
             }
-            .padding()
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .padding(16)
+            .background(Brand.card)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
+            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
         }
     }
 }

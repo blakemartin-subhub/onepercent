@@ -6,7 +6,7 @@ struct ProfileSetupView: View {
     let onComplete: () -> Void
     
     @State private var name = ""
-    @State private var selectedTones: Set<VoiceTone> = [.playful]  // Multi-select
+    @State private var selectedTones: Set<VoiceTone> = [.playful]
     @State private var selectedEmojiStyle: EmojiStyle = .light
     @State private var selectedBoundaries: Set<String> = []
     
@@ -20,57 +20,67 @@ struct ProfileSetupView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 32) {
+            VStack(spacing: 28) {
                 // Header
                 VStack(spacing: 12) {
-                    Image(systemName: "person.crop.circle")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.pink)
+                    ZStack {
+                        Circle()
+                            .fill(Brand.accentLight)
+                            .frame(width: 80, height: 80)
+                        
+                        Image(systemName: "person.crop.circle")
+                            .font(.system(size: 32))
+                            .foregroundStyle(Brand.accent)
+                    }
                     
                     Text("Your Profile")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(Brand.textPrimary)
                     
-                    Text("This info helps the AI write messages\nthat sound like you")
+                    Text("Help the AI write messages\nthat sound like you")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                         .multilineTextAlignment(.center)
                 }
-                .padding(.top, 40)
+                .padding(.top, 32)
                 
                 // Name
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your First Name")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Brand.textPrimary)
                     
                     TextField("Enter your name", text: $name)
                         .textFieldStyle(.plain)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(16)
+                        .background(Brand.backgroundSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Brand.radiusMedium)
+                                .stroke(Brand.border, lineWidth: 1)
+                        )
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 
-                // Voice/Tone - Multi-select
+                // Voice/Tone
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Your Vibe")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your Vibe")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textPrimary)
+                        
+                        Text("Select one or more message styles")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textSecondary)
+                    }
                     
-                    Text("Select one or more styles for your messages")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         ForEach(VoiceTone.allCases, id: \.self) { tone in
                             ToneButton(
                                 tone: tone,
                                 isSelected: selectedTones.contains(tone)
                             ) {
-                                // Toggle selection - allow multiple
                                 if selectedTones.contains(tone) {
-                                    // Don't allow deselecting if it's the only one
                                     if selectedTones.count > 1 {
                                         selectedTones.remove(tone)
                                     }
@@ -81,15 +91,15 @@ struct ProfileSetupView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 
                 // Emoji Style
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Emoji Style")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Brand.textPrimary)
                     
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
                         ForEach(EmojiStyle.allCases, id: \.self) { style in
                             EmojiStyleButton(
                                 style: style,
@@ -100,17 +110,19 @@ struct ProfileSetupView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 
                 // Boundaries
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Content Boundaries")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    Text("Messages will never include:")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Content Boundaries")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textPrimary)
+                        
+                        Text("Messages will never include:")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textSecondary)
+                    }
                     
                     VStack(spacing: 8) {
                         ForEach(boundaries, id: \.self) { boundary in
@@ -127,27 +139,7 @@ struct ProfileSetupView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 24)
-                
-                // Ready indicator
-                VStack(spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "keyboard.fill")
-                            .foregroundStyle(.pink)
-                        Text("You're almost ready!")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                    }
-                    
-                    Text("After setup, switch to the OnePercent keyboard\nin any dating app to get started")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding()
-                .background(Color.pink.opacity(0.05))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 20)
                 
                 // Continue Button
                 Button(action: saveAndContinue) {
@@ -155,33 +147,23 @@ struct ProfileSetupView: View {
                         Text("Start Using Keyboard")
                         Image(systemName: "arrow.right")
                     }
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                .padding(.horizontal, 24)
+                .buttonStyle(.brandPrimary)
+                .padding(.horizontal, 20)
                 .padding(.bottom, 40)
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 .opacity(name.trimmingCharacters(in: .whitespaces).isEmpty ? 0.6 : 1)
             }
         }
+        .background(Brand.background)
     }
     
     private func saveAndContinue() {
         let tonesArray = Array(selectedTones)
         profile = UserProfile(
             displayName: name.trimmingCharacters(in: .whitespaces),
-            voiceTone: tonesArray.first ?? .playful,  // Primary tone
-            voiceTones: tonesArray,  // All selected tones
+            voiceTone: tonesArray.first ?? .playful,
+            voiceTones: tonesArray,
             hardBoundaries: Array(selectedBoundaries),
             emojiStyle: selectedEmojiStyle
         )
@@ -198,23 +180,23 @@ struct ToneButton: View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Text(tone.displayName)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(isSelected ? Brand.accent : Brand.textPrimary)
                 
                 Text(tone.description)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity)
-            .background(isSelected ? Color.pink.opacity(0.15) : Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(isSelected ? Brand.accentLight : Brand.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.pink : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Brand.radiusMedium)
+                    .stroke(isSelected ? Brand.accent : Brand.border, lineWidth: isSelected ? 2 : 1)
             )
         }
         .buttonStyle(.plain)
@@ -229,15 +211,15 @@ struct EmojiStyleButton: View {
     var body: some View {
         Button(action: action) {
             Text(style.displayName)
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isSelected ? Brand.accent : Brand.textPrimary)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
-                .background(isSelected ? Color.pink.opacity(0.15) : Color(.systemGray6))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .background(isSelected ? Brand.accentLight : Brand.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color.pink : Color.clear, lineWidth: 2)
+                    RoundedRectangle(cornerRadius: Brand.radiusMedium)
+                        .stroke(isSelected ? Brand.accent : Brand.border, lineWidth: isSelected ? 2 : 1)
                 )
         }
         .buttonStyle(.plain)
@@ -253,16 +235,17 @@ struct BoundaryRow: View {
         Button(action: action) {
             HStack {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(isSelected ? .pink : .secondary)
+                    .foregroundStyle(isSelected ? Brand.accent : Brand.textMuted)
                 
                 Text(text)
                     .font(.subheadline)
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Spacer()
             }
-            .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(14)
+            .background(Brand.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
         }
         .buttonStyle(.plain)
     }

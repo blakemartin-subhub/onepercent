@@ -51,7 +51,7 @@ struct KeyboardMainView: View {
                 onOpenApp: onOpenApp
             )
         }
-        .background(Color(.systemGray6))
+        .background(KeyboardBrand.keyboardBackground)
         .onAppear(perform: loadData)
         .onChange(of: selectedVideoItem) { _, newItem in
             if let item = newItem {
@@ -149,22 +149,22 @@ struct KeyboardMainView: View {
             // Icon
             ZStack {
                 Circle()
-                    .fill(LinearGradient(colors: [.pink.opacity(0.2), .purple.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .fill(KeyboardBrand.accentLight.opacity(0.3))
                     .frame(width: 70, height: 70)
                 
                 Image(systemName: "heart.text.square")
                     .font(.system(size: 30))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(KeyboardBrand.accent)
             }
             
             VStack(spacing: 6) {
                 Text("Add Your First Match")
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Text("Screen record their dating profile")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
             }
             
             PhotosPicker(
@@ -179,9 +179,7 @@ struct KeyboardMainView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
-                .background(
-                    LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing)
-                )
+                .background(KeyboardBrand.buttonGradient)
                 .clipShape(Capsule())
             }
             
@@ -198,7 +196,7 @@ struct KeyboardMainView: View {
             HStack {
                 Text("Your Matches")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Spacer()
                 
@@ -215,9 +213,7 @@ struct KeyboardMainView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(
-                        LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing)
-                    )
+                    .background(KeyboardBrand.buttonGradient)
                     .clipShape(Capsule())
                 }
             }
@@ -567,30 +563,30 @@ struct ProcessingView: View {
             ZStack {
                 if let progress = progress {
                     Circle()
-                        .stroke(Color.pink.opacity(0.2), lineWidth: 4)
+                        .stroke(KeyboardBrand.accent.opacity(0.2), lineWidth: 4)
                         .frame(width: 60, height: 60)
                     
                     Circle()
                         .trim(from: 0, to: progress)
-                        .stroke(Color.pink, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .stroke(KeyboardBrand.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                         .frame(width: 60, height: 60)
                         .rotationEffect(.degrees(-90))
                 }
                 
                 Image(systemName: icon)
                     .font(.system(size: 24))
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(KeyboardBrand.accent)
             }
             
             VStack(spacing: 4) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 if let subtitle = subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
             
@@ -615,26 +611,24 @@ struct DraftingAnimationView: View {
                 // Animated pill
                 Image(systemName: "sparkles")
                     .font(.title3)
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(KeyboardBrand.accent)
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Drafting for \(name)")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                     
                     Text(step.rawValue + String(repeating: ".", count: dotCount))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
-            .background(
-                LinearGradient(colors: [.pink.opacity(0.15), .purple.opacity(0.15)], startPoint: .leading, endPoint: .trailing)
-            )
+            .background(KeyboardBrand.accentLight.opacity(0.2))
             .overlay(
                 Capsule()
-                    .strokeBorder(LinearGradient(colors: [.pink.opacity(0.5), .purple.opacity(0.5)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
+                    .strokeBorder(KeyboardBrand.accent.opacity(0.5), lineWidth: 1)
             )
             .clipShape(Capsule())
             
@@ -688,10 +682,10 @@ struct ResultsView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Confirm messages")
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                     Text("Swipe right on each to confirm")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
                 
                 Spacer()
@@ -699,7 +693,7 @@ struct ResultsView: View {
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
             .padding(.horizontal, 16)
@@ -754,14 +748,8 @@ struct ResultsView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .background(KeyboardBrand.buttonGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
             }
             .padding(.horizontal, 24)
             
@@ -803,32 +791,32 @@ struct SwipeToConfirmPill: View {
     
     var body: some View {
         ZStack(alignment: .leading) {
-            // Background (revealed when swiping) - subtle gray
+            // Background (revealed when swiping)
             HStack {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(KeyboardBrand.success)
                     .padding(.leading, 16)
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(.systemGray5))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(KeyboardBrand.keyboardCard)
+            .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
             
             // Foreground pill
             HStack(spacing: 10) {
-                // Order indicator - green only when confirmed
+                // Order indicator
                 Text("\(index)")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.white)
                     .frame(width: 22, height: 22)
-                    .background(isConfirmed ? Color.green : Color.pink)
+                    .background(isConfirmed ? KeyboardBrand.success : KeyboardBrand.accent)
                     .clipShape(Circle())
                 
                 // Message text
                 Text(text)
                     .font(.subheadline)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
@@ -837,12 +825,11 @@ struct SwipeToConfirmPill: View {
                 // Swipe hint or confirmed indicator
                 if isConfirmed {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(KeyboardBrand.success)
                 } else {
-                    // Swipe hint arrow
                     Image(systemName: "arrow.right.circle")
                         .font(.body)
-                        .foregroundStyle(.secondary.opacity(0.5))
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary.opacity(0.5))
                 }
             }
             .padding(.horizontal, 12)
@@ -895,15 +882,15 @@ struct ErrorView: View {
             
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 32))
-                .foregroundStyle(.orange)
+                .foregroundStyle(KeyboardBrand.warning)
             
             Text("Something went wrong")
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
             
             Text(message)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             
@@ -913,7 +900,7 @@ struct ErrorView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(Color.pink)
+                    .background(KeyboardBrand.accent)
                     .clipShape(Capsule())
             }
             
@@ -936,7 +923,7 @@ struct MatchRow: View {
         HStack(spacing: 12) {
             // Avatar
             Circle()
-                .fill(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .fill(KeyboardBrand.gradient)
                 .frame(width: 40, height: 40)
                 .overlay(
                     Text(match.name?.prefix(1).uppercased() ?? "?")
@@ -948,12 +935,12 @@ struct MatchRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(match.name ?? "Unknown")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 if let interests = match.interests.first {
                     Text(interests)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                         .lineLimit(1)
                 }
             }
@@ -966,14 +953,13 @@ struct MatchRow: View {
                 PhotosPicker(selection: $selectedVideo, matching: .videos) {
                     Image(systemName: "message.badge.filled.fill")
                         .font(.body)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(KeyboardBrand.warning)
                         .frame(width: 36, height: 36)
-                        .background(Color.orange.opacity(0.15))
+                        .background(KeyboardBrand.warning.opacity(0.15))
                         .clipShape(Circle())
                 }
                 .onChange(of: selectedVideo) { _, newItem in
                     if let item = newItem {
-                        // Trigger conversation update flow
                         NotificationCenter.default.post(
                             name: .processConversationVideo,
                             object: nil,
@@ -987,18 +973,17 @@ struct MatchRow: View {
                 Button(action: onTapMessages) {
                     Image(systemName: "text.bubble.fill")
                         .font(.body)
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(KeyboardBrand.accent)
                         .frame(width: 36, height: 36)
-                        .background(Color.pink.opacity(0.15))
+                        .background(KeyboardBrand.accentLight.opacity(0.3))
                         .clipShape(Circle())
                 }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+        .background(KeyboardBrand.keyboardCard)
+        .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
     }
 }
 
@@ -1050,7 +1035,7 @@ struct ControlsRow: View {
                 Image(systemName: "globe")
                     .font(.title2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.accent)
             }
             .frame(width: 60, height: 44)
             
@@ -1060,11 +1045,11 @@ struct ControlsRow: View {
                 Image(systemName: "delete.left")
                     .font(.title2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
             }
             .frame(width: 60, height: 44)
         }
-        .background(Color(.systemGray5))
+        .background(Color(hex: "2C2C2E"))
     }
 }
 

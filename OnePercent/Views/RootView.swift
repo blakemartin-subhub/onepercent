@@ -54,7 +54,7 @@ struct MainTabView: View {
             }
             .tag(2)
         }
-        .tint(.pink)
+        .tint(Brand.accent)
     }
 }
 
