@@ -48,8 +48,9 @@ export interface ParsedProfile {
 
 export interface GeneratedMessage {
   id?: string;
-  type: 'opener' | 'followUp' | 'reply';
+  type: 'opener' | 'followup' | 'hook' | 'question' | 'reply';
   text: string;
+  order?: number;
   riskFlags?: string[];
 }
 

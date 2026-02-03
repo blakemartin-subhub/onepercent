@@ -31,9 +31,10 @@ struct ProfileSetupView: View {
                         .font(.title)
                         .fontWeight(.bold)
                     
-                    Text("Help us personalize your messages")
+                    Text("This info helps the AI write messages\nthat sound like you")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.top, 40)
                 
@@ -120,21 +121,44 @@ struct ProfileSetupView: View {
                 }
                 .padding(.horizontal, 24)
                 
+                // Ready indicator
+                VStack(spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "keyboard.fill")
+                            .foregroundStyle(.pink)
+                        Text("You're almost ready!")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    
+                    Text("After setup, switch to the OnePercent keyboard\nin any dating app to get started")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
+                .background(Color.pink.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, 24)
+                
                 // Continue Button
                 Button(action: saveAndContinue) {
-                    Text("Complete Setup")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                    HStack {
+                        Text("Start Using Keyboard")
+                        Image(systemName: "arrow.right")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.pink, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 40)

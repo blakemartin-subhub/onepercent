@@ -27,17 +27,14 @@ struct HomeView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("OnePercent")
             .onAppear(perform: loadMatches)
-            .sheet(isPresented: $showingNewMatch) {
-                NewMatchView(onComplete: {
-                    showingNewMatch = false
-                    loadMatches()
-                })
+            .sheet(isPresented: $showingNewMatch, onDismiss: loadMatches) {
+                NewMatchView()
             }
             .navigationDestination(item: $selectedMatch) { match in
                 MatchProfileDetailView(
                     match: match,
                     userProfile: appState.userProfile,
-                    messages: MatchStore.shared.getMessages(for: match.id)
+                    messages: MatchStore.shared.loadMessages(for: match.id)
                 )
             }
         }
@@ -168,7 +165,7 @@ struct HomeView: View {
     
     // MARK: - Load Data
     private func loadMatches() {
-        matches = MatchStore.shared.getAllMatches()
+        matches = MatchStore.shared.loadAllMatches()
     }
 }
 

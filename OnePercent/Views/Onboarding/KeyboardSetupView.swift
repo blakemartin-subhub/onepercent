@@ -3,36 +3,38 @@ import SwiftUI
 struct KeyboardSetupView: View {
     let onContinue: () -> Void
     @State private var currentStep = 0
+    @State private var hasCheckedKeyboard = false
+    @State private var showingFullAccessWarning = false
     
     private let steps = [
         SetupStep(
             number: 1,
-            title: "Open Settings",
-            description: "Go to Settings → General → Keyboard → Keyboards",
+            title: "Open Keyboard Settings",
+            description: "Settings → General → Keyboard → Keyboards",
             icon: "gear"
         ),
         SetupStep(
             number: 2,
-            title: "Add New Keyboard",
-            description: "Tap 'Add New Keyboard...' and select 'OnePercent'",
+            title: "Add OnePercent Keyboard",
+            description: "Tap 'Add New Keyboard...' → select 'OnePercent'",
             icon: "plus.circle"
         ),
         SetupStep(
             number: 3,
             title: "Allow Full Access",
-            description: "Tap OnePercent, then enable 'Allow Full Access' for AI regeneration",
+            description: "Tap 'OnePercent' → toggle ON 'Allow Full Access'",
             icon: "lock.open"
         ),
         SetupStep(
             number: 4,
-            title: "You're Ready!",
-            description: "Switch keyboards using the globe icon while typing",
+            title: "Start Using!",
+            description: "While typing, tap 🌐 to switch to OnePercent",
             icon: "globe"
         )
     ]
     
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 24) {
             // Header
             VStack(spacing: 12) {
                 Image(systemName: "keyboard")
@@ -43,7 +45,7 @@ struct KeyboardSetupView: View {
                     .font(.title)
                     .fontWeight(.bold)
                 
-                Text("Follow these steps to enable the OnePercent keyboard")
+                Text("The keyboard is where all the magic happens")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -51,12 +53,13 @@ struct KeyboardSetupView: View {
             .padding(.top, 40)
             
             // Steps
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 ForEach(steps.indices, id: \.self) { index in
                     SetupStepRow(
                         step: steps[index],
                         isActive: index == currentStep,
-                        isCompleted: index < currentStep
+                        isCompleted: index < currentStep,
+                        isRequired: index == 2 // Full Access step
                     )
                     .onTapGesture {
                         withAnimation {
@@ -69,20 +72,31 @@ struct KeyboardSetupView: View {
             
             Spacer()
             
-            // Privacy note
-            VStack(spacing: 8) {
+            // Why Full Access is Required
+            VStack(spacing: 12) {
                 HStack(spacing: 6) {
-                    Image(systemName: "lock.shield")
-                        .foregroundStyle(.green)
-                    Text("Your Privacy is Protected")
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("Full Access is Required")
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
                 }
                 
-                Text("We never log your keystrokes or access your messages.\nFull Access is only used for AI message regeneration.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 6) {
+                    RequirementRow(icon: "photo", text: "Access your photo library to import recordings")
+                    RequirementRow(icon: "network", text: "Connect to AI for message generation")
+                    RequirementRow(icon: "cpu", text: "Process videos directly in the keyboard")
+                }
+                .padding(.horizontal, 8)
+                
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.shield.fill")
+                        .foregroundStyle(.green)
+                    Text("We never log keystrokes or read your messages")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 4)
             }
             .padding()
             .background(Color(.systemGray6))
@@ -91,10 +105,34 @@ struct KeyboardSetupView: View {
             
             // Buttons
             VStack(spacing: 12) {
-                Button(action: openSettings) {
+                Button(action: openKeyboardSettings) {
                     HStack {
                         Image(systemName: "gear")
                         Text("Open Settings")
+                    }
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.pink, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                
+                // Quick path hint
+                Text("Then: General → Keyboard → Keyboards → Add New Keyboard")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Button(action: verifyAndContinue) {
+                    HStack {
+                        Text("I've Enabled Full Access")
+                        Image(systemName: "checkmark.circle")
                     }
                     .font(.headline)
                     .foregroundStyle(.pink)
@@ -103,31 +141,73 @@ struct KeyboardSetupView: View {
                     .background(Color.pink.opacity(0.1))
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                 }
-                
-                Button(action: onContinue) {
-                    Text("Continue")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
+        .alert("Full Access Required", isPresented: $showingFullAccessWarning) {
+            Button("Open Settings") {
+                openKeyboardSettings()
+            }
+            Button("Continue Anyway", role: .destructive) {
+                onContinue()
+            }
+        } message: {
+            Text("Without Full Access enabled, the keyboard won't be able to access your photos or generate messages. Are you sure you want to continue?")
+        }
     }
     
-    private func openSettings() {
+    private func openKeyboardSettings() {
+        // Try different URL schemes for keyboard settings (iOS version dependent)
+        let keyboardURLs = [
+            "prefs:root=General&path=Keyboard/KEYBOARDS",  // iOS 15+
+            "App-prefs:root=General&path=Keyboard/KEYBOARDS",  // Older iOS
+            "App-prefs:General&path=Keyboard/KEYBOARDS"
+        ]
+        
+        for urlString in keyboardURLs {
+            if let url = URL(string: urlString),
+               UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+                return
+            }
+        }
+        
+        // Fallback: Open the app's own settings page
+        // This shows our keyboard extension if it's installed
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
+        }
+    }
+    
+    private func verifyAndContinue() {
+        // Check if keyboard likely has full access
+        // Note: There's no direct API to check this, so we show a warning
+        if !hasCheckedKeyboard {
+            hasCheckedKeyboard = true
+            showingFullAccessWarning = true
+        } else {
+            onContinue()
+        }
+    }
+}
+
+struct RequirementRow: View {
+    let icon: String
+    let text: String
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(.pink)
+                .frame(width: 20)
+            
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(.primary)
+            
+            Spacer()
         }
     }
 }
@@ -144,6 +224,7 @@ struct SetupStepRow: View {
     let step: SetupStep
     let isActive: Bool
     let isCompleted: Bool
+    var isRequired: Bool = false
     
     var body: some View {
         HStack(spacing: 16) {
@@ -165,10 +246,22 @@ struct SetupStepRow: View {
             }
             
             VStack(alignment: .leading, spacing: 2) {
-                Text(step.title)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(isActive ? .primary : .secondary)
+                HStack(spacing: 6) {
+                    Text(step.title)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(isActive ? .primary : .secondary)
+                    
+                    if isRequired && !isCompleted {
+                        Text("REQUIRED")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange)
+                            .clipShape(Capsule())
+                    }
+                }
                 
                 Text(step.description)
                     .font(.caption)

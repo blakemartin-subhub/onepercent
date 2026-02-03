@@ -27,47 +27,49 @@ struct NewMatchView: View {
     }
     
     var body: some View {
-        Group {
-            switch currentStep {
-            case .selectImages:
-                ImageSelectionView(
-                    selectedItems: $selectedItems,
-                    selectedImages: $selectedImages,
-                    onProcess: startProcessing,
-                    onVideoSelected: { url in
-                        startVideoProcessing(videoURL: url)
+        NavigationStack {
+            Group {
+                switch currentStep {
+                case .selectImages:
+                    ImageSelectionView(
+                        selectedItems: $selectedItems,
+                        selectedImages: $selectedImages,
+                        onProcess: startProcessing,
+                        onVideoSelected: { url in
+                            startVideoProcessing(videoURL: url)
+                        }
+                    )
+                case .processing:
+                    OCRProgressView(progress: ocrProgress)
+                case .reviewProfile:
+                    if let profile = parsedProfile {
+                        ProfilePreviewView(
+                            profile: Binding(
+                                get: { profile },
+                                set: { parsedProfile = $0 }
+                            ),
+                            onContinue: generateMessages,
+                            onCancel: resetFlow
+                        )
                     }
-                )
-            case .processing:
-                OCRProgressView(progress: ocrProgress)
-            case .reviewProfile:
-                if let profile = parsedProfile {
-                    ProfilePreviewView(
-                        profile: Binding(
-                            get: { profile },
-                            set: { parsedProfile = $0 }
-                        ),
-                        onContinue: generateMessages,
-                        onCancel: resetFlow
-                    )
-                }
-            case .viewMessages:
-                if let profile = parsedProfile, let messages = generatedMessages {
-                    MessagesResultView(
-                        match: profile,
-                        messages: messages,
-                        onSave: saveMatchAndDismiss,
-                        onRegenerate: regenerateMessages
-                    )
+                case .viewMessages:
+                    if let profile = parsedProfile, let messages = generatedMessages {
+                        MessagesResultView(
+                            match: profile,
+                            messages: messages,
+                            onSave: saveMatchAndDismiss,
+                            onRegenerate: regenerateMessages
+                        )
+                    }
                 }
             }
-        }
-        .navigationTitle(navigationTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                if currentStep == .selectImages {
-                    Button("Cancel") { dismiss() }
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if currentStep == .selectImages {
+                        Button("Cancel") { dismiss() }
+                    }
                 }
             }
         }
@@ -95,29 +97,39 @@ struct NewMatchView: View {
     }
     
     private func loadShareExtensionImages() {
+        print("[NewMatchView] Loading share extension content...")
+        
         // Check for video first (screen recording)
         if let videoURL = MatchStore.shared.getShareInboxVideoURL() {
-            MatchStore.shared.clearShareInbox()
-            startVideoProcessing(videoURL: videoURL)
+            print("[NewMatchView] Found video at: \(videoURL)")
+            print("[NewMatchView] Video exists: \(FileManager.default.fileExists(atPath: videoURL.path))")
+            // Don't clear inbox here - do it after processing completes
+            startVideoProcessing(videoURL: videoURL, clearInboxAfter: true)
             return
         }
         
         // Otherwise load images
         let urls = MatchStore.shared.getShareInboxImageURLs()
+        print("[NewMatchView] Found \(urls.count) images")
         for url in urls {
             if let data = try? Data(contentsOf: url),
                let image = UIImage(data: data) {
                 selectedImages.append(image)
             }
         }
+        // Clear inbox after loading images into memory
         MatchStore.shared.clearShareInbox()
         
         if !selectedImages.isEmpty {
+            print("[NewMatchView] Starting image processing with \(selectedImages.count) images")
             startProcessing()
+        } else {
+            print("[NewMatchView] No content found in share inbox")
         }
     }
     
-    private func startVideoProcessing(videoURL: URL) {
+    private func startVideoProcessing(videoURL: URL, clearInboxAfter: Bool = false) {
+        print("[NewMatchView] Starting video processing for: \(videoURL)")
         currentStep = .processing
         isProcessing = true
         ocrProgress = 0
@@ -125,11 +137,20 @@ struct NewMatchView: View {
         Task {
             do {
                 // Process video frames
+                print("[NewMatchView] Creating VideoProcessingService...")
                 let videoService = VideoProcessingService()
+                print("[NewMatchView] Extracting text from video...")
                 let text = try await videoService.extractTextFromVideo(at: videoURL) { progress, status in
                     Task { @MainActor in
                         ocrProgress = progress * 0.5
                     }
+                }
+                
+                print("[NewMatchView] Extracted text length: \(text.count) characters")
+                
+                // Clear inbox after video frames have been extracted
+                if clearInboxAfter {
+                    MatchStore.shared.clearShareInbox()
                 }
                 
                 await MainActor.run {
@@ -138,8 +159,11 @@ struct NewMatchView: View {
                 }
                 
                 // Parse profile with AI
+                print("[NewMatchView] Parsing profile with AI...")
                 let apiClient = APIClient.shared
                 let parseResponse = try await apiClient.parseProfile(ocrText: text)
+                
+                print("[NewMatchView] Profile parsed successfully: \(parseResponse.name ?? "unknown")")
                 
                 await MainActor.run {
                     ocrProgress = 1.0
@@ -148,6 +172,11 @@ struct NewMatchView: View {
                     isProcessing = false
                 }
             } catch {
+                print("[NewMatchView] Video processing error: \(error)")
+                // Clean up even on error
+                if clearInboxAfter {
+                    MatchStore.shared.clearShareInbox()
+                }
                 await MainActor.run {
                     errorMessage = "Failed to process video: \(error.localizedDescription)"
                     currentStep = .selectImages

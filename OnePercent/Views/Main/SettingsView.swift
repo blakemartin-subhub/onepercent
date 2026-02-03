@@ -318,7 +318,9 @@ struct EditProfileView: View {
 
 extension Bundle {
     var appVersion: String {
-        (infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+        let version = (infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.0"
+        let build = (infoDictionary?["CFBundleVersion"] as? String) ?? "1"
+        return "\(version) (\(build))"
     }
 }
 

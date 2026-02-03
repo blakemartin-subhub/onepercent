@@ -28,6 +28,7 @@ public struct GeneratedMessage: Codable, Identifiable, Sendable {
     public var id: UUID
     public var type: MessageType
     public var text: String
+    public var order: Int?
     public var riskFlags: [String]?
     public var reasoning: String?
     public var potentialOutcome: String?
@@ -36,6 +37,7 @@ public struct GeneratedMessage: Codable, Identifiable, Sendable {
         id: UUID = UUID(),
         type: MessageType,
         text: String,
+        order: Int? = nil,
         riskFlags: [String]? = nil,
         reasoning: String? = nil,
         potentialOutcome: String? = nil
@@ -43,6 +45,7 @@ public struct GeneratedMessage: Codable, Identifiable, Sendable {
         self.id = id
         self.type = type
         self.text = text
+        self.order = order
         self.riskFlags = riskFlags
         self.reasoning = reasoning
         self.potentialOutcome = potentialOutcome
@@ -57,13 +60,17 @@ public struct GeneratedMessage: Codable, Identifiable, Sendable {
 /// Type of message
 public enum MessageType: String, Codable, Sendable {
     case opener = "opener"
-    case followUp = "followUp"
+    case followup = "followup"
+    case hook = "hook"
+    case question = "question"
     case reply = "reply"
     
     public var displayName: String {
         switch self {
         case .opener: return "Opener"
-        case .followUp: return "Follow-up"
+        case .followup: return "Follow-up"
+        case .hook: return "Hook"
+        case .question: return "Question"
         case .reply: return "Reply"
         }
     }

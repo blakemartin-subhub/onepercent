@@ -1,8 +1,9 @@
 import SwiftUI
 import SharedKit
 import PhotosUI
+import AVFoundation
 
-/// Main keyboard view with the new keyboard-centric UX
+/// Main keyboard view with full in-keyboard processing
 struct KeyboardMainView: View {
     let onInsertText: (String) -> Void
     let onDeleteBackward: () -> Void
@@ -13,66 +14,35 @@ struct KeyboardMainView: View {
     @State private var currentMatch: MatchProfile?
     @State private var currentMessages: GeneratedMessageSet?
     @State private var processingState: ProcessingState = .idle
-    @State private var approvedLines: Set<Int> = []
-    @State private var currentSendIndex: Int = 0
-    @State private var showingResults: Bool = false
+    @State private var errorMessage: String?
+    
+    // Video picker state
+    @State private var selectedVideoItem: PhotosPickerItem?
+    @State private var isLoadingVideo = false
     
     enum ProcessingState: Equatable {
         case idle
-        case drafting(name: String, step: DraftingStep)
-        case ready(name: String)
+        case loadingVideo
+        case extractingFrames(progress: Double)
+        case runningOCR(progress: Double)
+        case parsingProfile
+        case generatingMessages(name: String, step: DraftingStep)
+        case ready(messages: [String], reasoning: String)
         case sending(index: Int, total: Int)
-        case complete
+        case error(String)
         
-        enum DraftingStep: Equatable {
-            case starting
-            case analyzing(interest: String)
-            case finding(commonality: String)
-            case optimizing(tone: String)
+        enum DraftingStep: String, Equatable {
+            case analyzing = "Analyzing profile..."
+            case finding = "Finding conversation hooks..."
+            case crafting = "Crafting opener..."
+            case optimizing = "Optimizing tone..."
         }
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            switch processingState {
-            case .idle:
-                if matches.isEmpty {
-                    EmptyStateView(onOpenApp: onOpenApp)
-                } else if showingResults, let match = currentMatch, let messages = currentMessages {
-                    ResultsView(
-                        match: match,
-                        messages: messages,
-                        approvedLines: $approvedLines,
-                        currentSendIndex: $currentSendIndex,
-                        onInsertText: onInsertText,
-                        onClose: { showingResults = false }
-                    )
-                } else {
-                    MatchListView(
-                        matches: matches,
-                        onSelectMatch: selectMatch,
-                        onOpenApp: onOpenApp
-                    )
-                }
-                
-            case .drafting(let name, let step):
-                DraftingAnimationView(name: name, step: step)
-                
-            case .ready(let name):
-                ReadyPillView(name: name) {
-                    showingResults = true
-                    processingState = .idle
-                }
-                
-            case .sending(let index, let total):
-                SendingView(index: index, total: total)
-                
-            case .complete:
-                CompleteView {
-                    processingState = .idle
-                    showingResults = false
-                }
-            }
+            // Main content area
+            mainContentView
             
             // Bottom controls
             ControlsRow(
@@ -83,48 +53,108 @@ struct KeyboardMainView: View {
         }
         .background(Color(.systemGray6))
         .onAppear(perform: loadData)
-    }
-    
-    private func loadData() {
-        matches = MatchStore.shared.getAllMatches()
-        
-        // Check for any pending processing results
-        if let lastMatchId = UserDefaults(suiteName: AppGroupConstants.groupIdentifier)?.string(forKey: "lastProcessedMatchId"),
-           let match = matches.first(where: { $0.id.uuidString == lastMatchId }) {
-            currentMatch = match
-            currentMessages = MatchStore.shared.getMessages(for: match.id)
-            processingState = .ready(name: match.name ?? "Match")
+        .onChange(of: selectedVideoItem) { _, newItem in
+            if let item = newItem {
+                processSelectedVideo(item)
+            }
         }
     }
     
-    private func selectMatch(_ match: MatchProfile) {
-        currentMatch = match
-        currentMessages = MatchStore.shared.getMessages(for: match.id)
-        showingResults = true
+    @ViewBuilder
+    private var mainContentView: some View {
+        switch processingState {
+        case .idle:
+            if matches.isEmpty {
+                emptyStateView
+            } else {
+                matchListView
+            }
+            
+        case .loadingVideo:
+            ProcessingView(
+                icon: "arrow.down.circle",
+                title: "Loading video...",
+                subtitle: nil,
+                progress: nil
+            )
+            
+        case .extractingFrames(let progress):
+            ProcessingView(
+                icon: "film",
+                title: "Extracting frames...",
+                subtitle: "\(Int(progress * 100))%",
+                progress: progress
+            )
+            
+        case .runningOCR(let progress):
+            ProcessingView(
+                icon: "text.viewfinder",
+                title: "Reading profile...",
+                subtitle: "\(Int(progress * 100))%",
+                progress: progress
+            )
+            
+        case .parsingProfile:
+            ProcessingView(
+                icon: "person.text.rectangle",
+                title: "Understanding profile...",
+                subtitle: nil,
+                progress: nil
+            )
+            
+        case .generatingMessages(let name, let step):
+            DraftingAnimationView(name: name, step: step)
+            
+        case .ready(let messages, let reasoning):
+            ResultsView(
+                messages: messages,
+                reasoning: reasoning,
+                onSend: { index in sendMessage(at: index) },
+                onSendAll: sendAllMessages,
+                onClose: { 
+                    processingState = .idle
+                    // Reload matches to show the new one
+                    matches = MatchStore.shared.loadAllMatches()
+                }
+            )
+            
+        case .sending(let index, let total):
+            ProcessingView(
+                icon: "paperplane.fill",
+                title: "Sending \(index)/\(total)...",
+                subtitle: nil,
+                progress: Double(index) / Double(total)
+            )
+            
+        case .error(let message):
+            ErrorView(message: message) {
+                processingState = .idle
+            }
+        }
     }
-}
-
-// MARK: - Empty State View
-struct EmptyStateView: View {
-    let onOpenApp: () -> Void
     
-    var body: some View {
-        VStack(spacing: 16) {
+    // MARK: - Empty State
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
             Spacer()
             
             Image(systemName: "record.circle")
-                .font(.system(size: 40))
+                .font(.system(size: 36))
                 .foregroundStyle(.pink)
             
-            Text("Drop a 3-second screen recording")
+            Text("Add a screen recording")
                 .font(.headline)
                 .foregroundStyle(.primary)
             
-            Text("of the match's profile")
+            Text("of the match's dating profile")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             
-            Button(action: onOpenApp) {
+            PhotosPicker(
+                selection: $selectedVideoItem,
+                matching: .videos
+            ) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
                     Text("Add Recording")
@@ -139,28 +169,35 @@ struct EmptyStateView: View {
                 .clipShape(Capsule())
             }
             
+            // Full Access reminder
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.circle")
+                    .font(.caption2)
+                Text("Requires Full Access")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+            
             Spacer()
         }
         .padding()
     }
-}
-
-// MARK: - Match List View
-struct MatchListView: View {
-    let matches: [MatchProfile]
-    let onSelectMatch: (MatchProfile) -> Void
-    let onOpenApp: () -> Void
     
-    var body: some View {
+    // MARK: - Match List
+    
+    private var matchListView: some View {
         VStack(spacing: 12) {
-            // Add new match button
-            Button(action: onOpenApp) {
+            // Add new recording button
+            PhotosPicker(
+                selection: $selectedVideoItem,
+                matching: .videos
+            ) {
                 HStack {
                     Image(systemName: "record.circle")
                         .foregroundStyle(.pink)
-                    Text("Drop a screen recording")
+                    Text("Add screen recording")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "plus.circle.fill")
                         .foregroundStyle(.pink)
@@ -177,7 +214,7 @@ struct MatchListView: View {
                 HStack(spacing: 10) {
                     ForEach(matches) { match in
                         MatchChip(match: match) {
-                            onSelectMatch(match)
+                            selectMatch(match)
                         }
                     }
                 }
@@ -186,7 +223,567 @@ struct MatchListView: View {
         }
         .padding(.vertical, 8)
     }
+    
+    // MARK: - Data Loading
+    
+    private func loadData() {
+        matches = MatchStore.shared.loadAllMatches()
+    }
+    
+    private func selectMatch(_ match: MatchProfile) {
+        currentMatch = match
+        if let messages = MatchStore.shared.loadMessages(for: match.id) {
+            let messageTexts = messages.messages.map { $0.text }
+            let reasoning = generateReasoning(for: match)
+            processingState = .ready(messages: messageTexts, reasoning: reasoning)
+        }
+    }
+    
+    // MARK: - Video Processing
+    
+    private func processSelectedVideo(_ item: PhotosPickerItem) {
+        processingState = .loadingVideo
+        
+        Task {
+            do {
+                print("[Keyboard] Loading video from PhotosPicker...")
+                
+                // Try to load the video
+                guard let video = try await item.loadTransferable(type: KeyboardVideoTransferable.self) else {
+                    print("[Keyboard] Video transferable returned nil")
+                    throw KeyboardProcessingError.videoLoadFailed
+                }
+                
+                print("[Keyboard] Video loaded successfully: \(video.url)")
+                
+                // Check if file exists
+                guard FileManager.default.fileExists(atPath: video.url.path) else {
+                    print("[Keyboard] Video file doesn't exist at path")
+                    throw KeyboardProcessingError.videoLoadFailed
+                }
+                
+                await processVideoFile(video.url)
+            } catch {
+                print("[Keyboard] Error loading video: \(error)")
+                await MainActor.run {
+                    // Check if it's likely a permissions issue
+                    let errorMessage: String
+                    if error.localizedDescription.contains("permission") || 
+                       error.localizedDescription.contains("access") ||
+                       error.localizedDescription.contains("denied") {
+                        errorMessage = "Enable 'Allow Full Access' in Settings → Keyboard → OnePercent"
+                    } else {
+                        errorMessage = "Unable to load video. Make sure Full Access is enabled for this keyboard."
+                    }
+                    processingState = .error(errorMessage)
+                    selectedVideoItem = nil
+                }
+            }
+        }
+    }
+    
+    private func processVideoFile(_ url: URL) async {
+        do {
+            // Phase 1: Extract frames
+            await MainActor.run { processingState = .extractingFrames(progress: 0) }
+            
+            let videoService = KeyboardVideoService()
+            let ocrText = try await videoService.extractTextFromVideo(at: url) { progress, status in
+                Task { @MainActor in
+                    if progress < 0.5 {
+                        processingState = .extractingFrames(progress: progress * 2)
+                    } else {
+                        processingState = .runningOCR(progress: (progress - 0.5) * 2)
+                    }
+                }
+            }
+            
+            print("[Keyboard] OCR text length: \(ocrText.count)")
+            
+            // Phase 2: Parse profile with AI
+            await MainActor.run { processingState = .parsingProfile }
+            
+            let apiClient = KeyboardAPIClient.shared
+            let parseResponse: KeyboardParseProfileResponse
+            do {
+                parseResponse = try await apiClient.parseProfile(ocrText: ocrText)
+            } catch {
+                // Check if this is a network error and provide a better message
+                let nsError = error as NSError
+                print("[Keyboard] API error: \(nsError.domain) code: \(nsError.code)")
+                if nsError.domain == NSURLErrorDomain {
+                    switch nsError.code {
+                    case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+                        throw KeyboardProcessingError.fullAccessRequired
+                    case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
+                        throw KeyboardProcessingError.serverUnreachable
+                    default:
+                        throw KeyboardProcessingError.networkError(nsError.localizedDescription)
+                    }
+                }
+                throw error
+            }
+            let matchProfile = parseResponse.toMatchProfile(rawOcrText: ocrText)
+            
+            print("[Keyboard] Parsed profile: \(matchProfile.name ?? "unknown")")
+            
+            // Phase 3: Generate messages
+            guard let userProfile = MatchStore.shared.loadUserProfile() else {
+                throw KeyboardProcessingError.noUserProfile
+            }
+            
+            let name = matchProfile.name ?? "Match"
+            
+            // Animate through drafting steps
+            for step in [ProcessingState.DraftingStep.analyzing, .finding, .crafting, .optimizing] {
+                await MainActor.run {
+                    processingState = .generatingMessages(name: name, step: step)
+                }
+                try await Task.sleep(nanoseconds: 600_000_000) // 0.6s per step
+            }
+            
+            let messages: [GeneratedMessage]
+            let apiReasoning: String?
+            do {
+                let result = try await apiClient.generateMessages(
+                    userProfile: userProfile,
+                    matchProfile: matchProfile
+                )
+                messages = result.messages
+                apiReasoning = result.reasoning
+            } catch {
+                let nsError = error as NSError
+                if nsError.domain == NSURLErrorDomain {
+                    switch nsError.code {
+                    case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+                        throw KeyboardProcessingError.fullAccessRequired
+                    case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
+                        throw KeyboardProcessingError.serverUnreachable
+                    default:
+                        throw KeyboardProcessingError.networkError(nsError.localizedDescription)
+                    }
+                }
+                throw error
+            }
+            
+            // Save to store
+            let messageSet = GeneratedMessageSet(
+                matchId: matchProfile.matchId,
+                messages: messages,
+                toneUsed: userProfile.voiceTone
+            )
+            
+            MatchStore.shared.saveMatch(matchProfile)
+            MatchStore.shared.saveMessages(messageSet)
+            MatchStore.shared.saveLastSelectedMatch(matchProfile.matchId)
+            
+            // Show results - sort messages by order if available
+            let sortedMessages = messages.sorted { ($0.order ?? 0) < ($1.order ?? 0) }
+            let messageTexts = sortedMessages.map { $0.text }
+            let reasoning = apiReasoning ?? generateReasoning(for: matchProfile)
+            
+            await MainActor.run {
+                currentMatch = matchProfile
+                matches = MatchStore.shared.loadAllMatches()
+                processingState = .ready(messages: messageTexts, reasoning: reasoning)
+                selectedVideoItem = nil
+            }
+            
+        } catch {
+            print("[Keyboard] Processing error: \(error)")
+            await MainActor.run {
+                processingState = .error(error.localizedDescription)
+                selectedVideoItem = nil
+            }
+        }
+    }
+    
+    // MARK: - Message Sending
+    
+    private func sendMessage(at index: Int) {
+        guard case .ready(let messages, _) = processingState,
+              index < messages.count else { return }
+        
+        onInsertText(messages[index])
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+    }
+    
+    private func sendAllMessages() {
+        guard case .ready(let messages, _) = processingState else { return }
+        
+        // Insert all messages with line breaks
+        let combined = messages.joined(separator: "\n\n")
+        onInsertText(combined)
+        
+        processingState = .idle
+    }
+    
+    // MARK: - Helpers
+    
+    private func generateReasoning(for match: MatchProfile) -> String {
+        let name = match.name ?? "They"
+        let interest = match.interests.first ?? "interesting things"
+        return "\(name) mentioned \(interest), so we're leading with that to build genuine connection."
+    }
 }
+
+// MARK: - Processing View
+
+struct ProcessingView: View {
+    let icon: String
+    let title: String
+    let subtitle: String?
+    let progress: Double?
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            ZStack {
+                if let progress = progress {
+                    Circle()
+                        .stroke(Color.pink.opacity(0.2), lineWidth: 4)
+                        .frame(width: 60, height: 60)
+                    
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(Color.pink, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                        .frame(width: 60, height: 60)
+                        .rotationEffect(.degrees(-90))
+                }
+                
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundStyle(.pink)
+            }
+            
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Drafting Animation View
+
+struct DraftingAnimationView: View {
+    let name: String
+    let step: KeyboardMainView.ProcessingState.DraftingStep
+    
+    @State private var dotCount = 0
+    
+    var body: some View {
+        VStack {
+            Spacer()
+            
+            HStack(spacing: 12) {
+                // Animated pill
+                Image(systemName: "sparkles")
+                    .font(.title3)
+                    .foregroundStyle(.pink)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Drafting for \(name)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    
+                    Text(step.rawValue + String(repeating: ".", count: dotCount))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+            .background(
+                LinearGradient(colors: [.pink.opacity(0.15), .purple.opacity(0.15)], startPoint: .leading, endPoint: .trailing)
+            )
+            .overlay(
+                Capsule()
+                    .strokeBorder(LinearGradient(colors: [.pink.opacity(0.5), .purple.opacity(0.5)], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+            
+            Spacer()
+        }
+        .onAppear { animateDots() }
+    }
+    
+    private func animateDots() {
+        Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            dotCount = (dotCount + 1) % 4
+        }
+    }
+}
+
+// MARK: - Results View
+
+struct ResultsView: View {
+    let messages: [String]
+    let reasoning: String
+    let onSend: (Int) -> Void
+    let onSendAll: () -> Void
+    let onClose: () -> Void
+    
+    @State private var confirmedIndices: Set<Int> = []
+    @State private var sendingMode = false
+    @State private var currentSendIndex = 0
+    
+    private var allConfirmed: Bool {
+        confirmedIndices.count == messages.count
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            if sendingMode {
+                // Sending mode - just the send button
+                sendingModeView
+            } else {
+                // Confirmation mode - show messages to confirm
+                confirmationModeView
+            }
+        }
+    }
+    
+    // MARK: - Confirmation Mode
+    
+    private var confirmationModeView: some View {
+        VStack(spacing: 8) {
+            // Header
+            HStack {
+                Text("Swipe right to confirm each")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            
+            // Messages stacked vertically
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 6) {
+                    ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
+                        SwipeToConfirmPill(
+                            text: message,
+                            index: index + 1,
+                            total: messages.count,
+                            isConfirmed: confirmedIndices.contains(index),
+                            onConfirm: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    confirmedIndices.insert(index)
+                                }
+                                // Haptic feedback
+                                let generator = UIImpactFeedbackGenerator(style: .medium)
+                                generator.impactOccurred()
+                                
+                                // Auto-enter sending mode when all confirmed
+                                if confirmedIndices.count == messages.count {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        withAnimation {
+                                            sendingMode = true
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
+        }
+    }
+    
+    // MARK: - Sending Mode
+    
+    private var sendingModeView: some View {
+        VStack {
+            Spacer()
+            
+            Button(action: sendCurrentMessage) {
+                Text("Message \(currentSendIndex + 1) of \(messages.count)")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [.pink, .purple],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+            .padding(.horizontal, 24)
+            
+            Spacer()
+        }
+    }
+    
+    private func sendCurrentMessage() {
+        // Send the current message
+        onSend(currentSendIndex)
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+        
+        // Move to next or close
+        if currentSendIndex < messages.count - 1 {
+            currentSendIndex += 1
+        } else {
+            // All messages sent, close
+            onClose()
+        }
+    }
+}
+
+// MARK: - Swipe to Confirm Pill
+
+struct SwipeToConfirmPill: View {
+    let text: String
+    let index: Int
+    let total: Int
+    let isConfirmed: Bool
+    let onConfirm: () -> Void
+    
+    @State private var offset: CGFloat = 0
+    @State private var isDragging = false
+    
+    private let confirmThreshold: CGFloat = 80
+    
+    var body: some View {
+        ZStack(alignment: .leading) {
+            // Background (revealed when swiping)
+            HStack {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .padding(.leading, 16)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.green)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            
+            // Foreground pill
+            HStack(spacing: 10) {
+                // Order indicator
+                Text("\(index)")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 22, height: 22)
+                    .background(isConfirmed ? Color.green : Color.pink)
+                    .clipShape(Circle())
+                
+                // Message text
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                
+                Spacer()
+                
+                // Confirmed indicator
+                if isConfirmed {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 1)
+            .offset(x: isConfirmed ? 0 : offset)
+            .gesture(
+                isConfirmed ? nil : DragGesture()
+                    .onChanged { value in
+                        if value.translation.width > 0 {
+                            offset = value.translation.width
+                            isDragging = true
+                        }
+                    }
+                    .onEnded { value in
+                        isDragging = false
+                        if value.translation.width > confirmThreshold {
+                            onConfirm()
+                        }
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            offset = 0
+                        }
+                    }
+            )
+        }
+        .frame(height: 50)
+    }
+}
+
+// MARK: - Error View
+
+struct ErrorView: View {
+    let message: String
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 32))
+                .foregroundStyle(.orange)
+            
+            Text("Something went wrong")
+                .font(.headline)
+                .foregroundStyle(.primary)
+            
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+            
+            Button(action: onDismiss) {
+                Text("Try Again")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(Color.pink)
+                    .clipShape(Capsule())
+            }
+            
+            Spacer()
+        }
+    }
+}
+
+// MARK: - Match Chip
 
 struct MatchChip: View {
     let match: MatchProfile
@@ -216,385 +813,8 @@ struct MatchChip: View {
     }
 }
 
-// MARK: - Drafting Animation View
-struct DraftingAnimationView: View {
-    let name: String
-    let step: KeyboardMainView.ProcessingState.DraftingStep
-    
-    @State private var dotCount = 0
-    @State private var showText = false
-    
-    private var displayText: String {
-        let dots = String(repeating: ".", count: dotCount)
-        switch step {
-        case .starting:
-            return "Drafting message to \(name)\(dots)"
-        case .analyzing(let interest):
-            return "\(name) likes \(interest)\(dots)"
-        case .finding(let commonality):
-            return "\(name) wants to \(commonality)\(dots)"
-        case .optimizing(let tone):
-            return "Optimizing for \(tone) tone\(dots)"
-        }
-    }
-    
-    var body: some View {
-        VStack {
-            Spacer()
-            
-            HStack {
-                Text(displayText)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .animation(.easeInOut(duration: 0.3), value: displayText)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(
-                LinearGradient(colors: [.pink.opacity(0.2), .purple.opacity(0.2)], startPoint: .leading, endPoint: .trailing)
-            )
-            .clipShape(Capsule())
-            
-            Spacer()
-        }
-        .onAppear {
-            animateDots()
-        }
-    }
-    
-    private func animateDots() {
-        Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
-            dotCount = (dotCount + 1) % 4
-        }
-    }
-}
-
-// MARK: - Ready Pill View
-struct ReadyPillView: View {
-    let name: String
-    let onTap: () -> Void
-    
-    var body: some View {
-        VStack {
-            Spacer()
-            
-            Button(action: onTap) {
-                HStack(spacing: 10) {
-                    // Red notification dot
-                    Circle()
-                        .fill(.red)
-                        .frame(width: 10, height: 10)
-                    
-                    Text("Message ready for \(name)")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 14)
-                .background(
-                    LinearGradient(colors: [.pink.opacity(0.15), .purple.opacity(0.15)], startPoint: .leading, endPoint: .trailing)
-                )
-                .overlay(
-                    Capsule()
-                        .strokeBorder(LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing), lineWidth: 2)
-                )
-                .clipShape(Capsule())
-            }
-            
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Results View
-struct ResultsView: View {
-    let match: MatchProfile
-    let messages: GeneratedMessageSet
-    @Binding var approvedLines: Set<Int>
-    @Binding var currentSendIndex: Int
-    let onInsertText: (String) -> Void
-    let onClose: () -> Void
-    
-    private var messageLines: [String] {
-        messages.messages.first?.text.components(separatedBy: "\n").filter { !$0.isEmpty } ?? []
-    }
-    
-    private var allApproved: Bool {
-        approvedLines.count == messageLines.count && !messageLines.isEmpty
-    }
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // Close button
-            HStack {
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
-            
-            if allApproved {
-                // Send mode
-                SendModeView(
-                    messageLines: messageLines,
-                    currentSendIndex: $currentSendIndex,
-                    onInsertText: onInsertText,
-                    onComplete: onClose
-                )
-            } else {
-                // Approval mode
-                ScrollView {
-                    VStack(spacing: 12) {
-                        // Reasoning section
-                        ReasoningCard(match: match, messages: messages)
-                        
-                        // Message lines to approve
-                        ForEach(Array(messageLines.enumerated()), id: \.offset) { index, line in
-                            SwipeablePill(
-                                text: line,
-                                index: index,
-                                isApproved: approvedLines.contains(index),
-                                onApprove: {
-                                    approvedLines.insert(index)
-                                }
-                            )
-                        }
-                        
-                        // Status
-                        Text("\(approvedLines.count) of \(messageLines.count) ready to send")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 8)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Reasoning Card
-struct ReasoningCard: View {
-    let match: MatchProfile
-    let messages: GeneratedMessageSet
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.pink)
-                Text("Why this message?")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-            
-            Text(generateReasoning())
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .lineLimit(3)
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGray5))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-    
-    private func generateReasoning() -> String {
-        let name = match.name ?? "They"
-        let interest = match.interests.first ?? "interesting things"
-        let hook = match.hooks.first ?? "conversation"
-        
-        return "\(name) mentioned \(interest), so we're starting with that to build rapport. If this goes well, it could lead to meeting up to explore that shared interest together."
-    }
-}
-
-// MARK: - Swipeable Pill
-struct SwipeablePill: View {
-    let text: String
-    let index: Int
-    let isApproved: Bool
-    let onApprove: () -> Void
-    
-    @State private var offset: CGFloat = 0
-    @State private var hasTriggeredHaptic = false
-    
-    private let approveThreshold: CGFloat = 100
-    
-    var body: some View {
-        ZStack(alignment: .leading) {
-            // Background (revealed on swipe)
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .padding(.leading, 16)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.green)
-            .clipShape(Capsule())
-            
-            // Foreground pill
-            HStack {
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(isApproved ? .white : .primary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                
-                Spacer()
-                
-                if !isApproved {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isApproved ? Color.green : Color(.systemGray5))
-            .clipShape(Capsule())
-            .offset(x: offset)
-            .gesture(
-                isApproved ? nil : DragGesture()
-                    .onChanged { value in
-                        if value.translation.width > 0 {
-                            offset = value.translation.width
-                            
-                            // Haptic feedback at threshold
-                            if offset >= approveThreshold && !hasTriggeredHaptic {
-                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                generator.impactOccurred()
-                                hasTriggeredHaptic = true
-                            }
-                        }
-                    }
-                    .onEnded { value in
-                        if offset >= approveThreshold {
-                            withAnimation(.spring(response: 0.3)) {
-                                offset = 0
-                            }
-                            onApprove()
-                        } else {
-                            withAnimation(.spring(response: 0.3)) {
-                                offset = 0
-                            }
-                        }
-                        hasTriggeredHaptic = false
-                    }
-            )
-        }
-        .frame(height: 50)
-    }
-}
-
-// MARK: - Send Mode View
-struct SendModeView: View {
-    let messageLines: [String]
-    @Binding var currentSendIndex: Int
-    let onInsertText: (String) -> Void
-    let onComplete: () -> Void
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            Spacer()
-            
-            // Current message preview
-            Text(messageLines[safe: currentSendIndex] ?? "")
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .padding()
-                .background(Color(.systemGray5))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-                .padding(.horizontal, 12)
-            
-            // Send button
-            Button(action: sendCurrentMessage) {
-                HStack {
-                    Image(systemName: "paperplane.fill")
-                    Text("Send message \(currentSendIndex + 1) of \(messageLines.count)")
-                }
-                .font(.headline)
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    LinearGradient(colors: [.pink, .purple], startPoint: .leading, endPoint: .trailing)
-                )
-                .clipShape(Capsule())
-            }
-            .padding(.horizontal, 12)
-            
-            Spacer()
-        }
-    }
-    
-    private func sendCurrentMessage() {
-        guard currentSendIndex < messageLines.count else { return }
-        
-        onInsertText(messageLines[currentSendIndex])
-        
-        if currentSendIndex < messageLines.count - 1 {
-            currentSendIndex += 1
-        } else {
-            onComplete()
-        }
-    }
-}
-
-// MARK: - Sending View
-struct SendingView: View {
-    let index: Int
-    let total: Int
-    
-    var body: some View {
-        VStack {
-            Spacer()
-            Text("Sending message \(index) of \(total)...")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.secondary)
-            Spacer()
-        }
-    }
-}
-
-// MARK: - Complete View
-struct CompleteView: View {
-    let onDismiss: () -> Void
-    
-    var body: some View {
-        VStack {
-            Spacer()
-            
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 40))
-                .foregroundStyle(.green)
-            
-            Text("All messages sent!")
-                .font(.headline)
-                .foregroundStyle(.primary)
-            
-            Button("Done", action: onDismiss)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.pink)
-                .padding(.top, 8)
-            
-            Spacer()
-        }
-    }
-}
-
 // MARK: - Controls Row
+
 struct ControlsRow: View {
     let onNextKeyboard: () -> Void
     let onDeleteBackward: () -> Void
@@ -602,7 +822,6 @@ struct ControlsRow: View {
     
     var body: some View {
         HStack(spacing: 0) {
-            // Globe button
             Button(action: onNextKeyboard) {
                 Image(systemName: "globe")
                     .font(.title2)
@@ -613,7 +832,6 @@ struct ControlsRow: View {
             
             Spacer()
             
-            // Backspace
             Button(action: onDeleteBackward) {
                 Image(systemName: "delete.left")
                     .font(.title2)
@@ -626,7 +844,51 @@ struct ControlsRow: View {
     }
 }
 
-// MARK: - Safe Array Access
+// MARK: - Video Transferable
+
+struct KeyboardVideoTransferable: Transferable {
+    let url: URL
+    
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { video in
+            SentTransferredFile(video.url)
+        } importing: { received in
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString)
+                .appendingPathExtension("mp4")
+            try FileManager.default.copyItem(at: received.file, to: tempURL)
+            return KeyboardVideoTransferable(url: tempURL)
+        }
+    }
+}
+
+// MARK: - Errors
+
+enum KeyboardProcessingError: Error, LocalizedError {
+    case videoLoadFailed
+    case noUserProfile
+    case fullAccessRequired
+    case serverUnreachable
+    case networkError(String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .videoLoadFailed:
+            return "Could not load the video"
+        case .noUserProfile:
+            return "Please set up your profile in the app first"
+        case .fullAccessRequired:
+            return "Enable Full Access: Settings → Keyboards → OnePercent → Allow Full Access"
+        case .serverUnreachable:
+            return "Cannot connect to server. Make sure your Mac is on the same network and the backend is running."
+        case .networkError(let message):
+            return "Network error: \(message)"
+        }
+    }
+}
+
+// MARK: - Array Extension
+
 extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil

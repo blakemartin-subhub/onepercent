@@ -5,8 +5,8 @@ import SharedKit
 actor APIClient {
     static let shared = APIClient()
     
-    // Backend URL - change to your production URL when deploying
-    private let baseURL = "http://localhost:3002"
+    // Backend URL - Your Mac's IP address (on iPhone hotspot)
+    private let baseURL = "http://172.20.10.10:3002"
     
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -77,9 +77,13 @@ actor APIClient {
     ) async throws -> R {
         var lastError: Error = APIError.unknown
         
+        print("[APIClient] Attempting request to: \(request.url?.absoluteString ?? "unknown")")
+        
         for attempt in 0..<maxRetries {
             do {
+                print("[APIClient] Attempt \(attempt + 1)/\(maxRetries)")
                 let (data, response) = try await session.data(for: request)
+                print("[APIClient] Request succeeded!")
                 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw APIError.invalidResponse
@@ -115,8 +119,11 @@ actor APIClient {
             } catch is CancellationError {
                 throw CancellationError()
             } catch let error as APIError {
+                print("[APIClient] APIError on attempt \(attempt + 1): \(error.localizedDescription)")
                 lastError = error
             } catch {
+                print("[APIClient] Network error on attempt \(attempt + 1): \(error)")
+                print("[APIClient] Error details: \((error as NSError).domain) code: \((error as NSError).code)")
                 lastError = error
                 // Network error - retry with backoff
                 let waitTime = pow(2.0, Double(attempt))
@@ -124,6 +131,7 @@ actor APIClient {
             }
         }
         
+        print("[APIClient] All retries failed. Final error: \(lastError)")
         throw lastError
     }
     

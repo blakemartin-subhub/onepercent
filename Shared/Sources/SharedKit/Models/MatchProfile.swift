@@ -1,7 +1,7 @@
 import Foundation
 
 /// A match's profile extracted from screenshots
-public struct MatchProfile: Codable, Identifiable, Sendable {
+public struct MatchProfile: Codable, Identifiable, Sendable, Hashable {
     public var matchId: UUID
     public var name: String?
     public var age: Int?
@@ -64,7 +64,7 @@ public struct MatchProfile: Codable, Identifiable, Sendable {
 }
 
 /// A prompt and its answer from the dating profile
-public struct PromptAnswer: Codable, Identifiable, Sendable {
+public struct PromptAnswer: Codable, Identifiable, Sendable, Hashable {
     public var id: UUID
     public var prompt: String
     public var answer: String

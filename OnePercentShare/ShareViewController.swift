@@ -89,7 +89,12 @@ class ShareViewController: UIViewController {
     }
     
     private func saveVideo(from sourceURL: URL) -> String? {
-        guard let inbox = storage.shareInboxDirectory else { return nil }
+        print("[ShareExt] Saving video from: \(sourceURL)")
+        guard let inbox = storage.shareInboxDirectory else {
+            print("[ShareExt] ERROR: No share inbox directory")
+            return nil
+        }
+        print("[ShareExt] Share inbox directory: \(inbox)")
         
         let fileName = "\(UUID().uuidString).mp4"
         let destURL = inbox.appendingPathComponent(fileName)
@@ -100,9 +105,10 @@ class ShareViewController: UIViewController {
                 try FileManager.default.removeItem(at: destURL)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
+            print("[ShareExt] Video saved successfully to: \(destURL)")
             return fileName
         } catch {
-            print("Failed to save video: \(error)")
+            print("[ShareExt] Failed to save video: \(error)")
             return nil
         }
     }
@@ -123,7 +129,10 @@ class ShareViewController: UIViewController {
     }
     
     private func saveManifestAndOpenApp(imageFiles: [String], videoFile: String?) {
+        print("[ShareExt] saveManifestAndOpenApp - images: \(imageFiles.count), video: \(videoFile ?? "none")")
+        
         guard let inbox = storage.shareInboxDirectory else {
+            print("[ShareExt] ERROR: No inbox directory for manifest")
             completeWithError()
             return
         }
@@ -134,8 +143,9 @@ class ShareViewController: UIViewController {
         
         do {
             try storage.save(manifest, to: manifestURL)
+            print("[ShareExt] Manifest saved to: \(manifestURL)")
         } catch {
-            print("Failed to save manifest: \(error)")
+            print("[ShareExt] Failed to save manifest: \(error)")
             completeWithError()
             return
         }
@@ -148,12 +158,18 @@ class ShareViewController: UIViewController {
     }
     
     private func openMainApp() {
-        guard let url = URL(string: "onepercent://import") else { return }
+        guard let url = URL(string: "onepercent://import") else {
+            print("[ShareExt] ERROR: Could not create URL")
+            return
+        }
+        
+        print("[ShareExt] Attempting to open URL: \(url)")
         
         // Use responder chain to open URL
         var responder: UIResponder? = self
         while responder != nil {
             if let application = responder as? UIApplication {
+                print("[ShareExt] Found UIApplication, opening URL...")
                 application.open(url, options: [:], completionHandler: nil)
                 return
             }
@@ -161,15 +177,19 @@ class ShareViewController: UIViewController {
         }
         
         // Alternative: Use selector
+        print("[ShareExt] UIApplication not found, trying selector method...")
         let selector = NSSelectorFromString("openURL:")
         responder = self
         while responder != nil {
             if responder!.responds(to: selector) {
+                print("[ShareExt] Found responder with openURL selector")
                 responder!.perform(selector, with: url)
                 return
             }
             responder = responder?.next
         }
+        
+        print("[ShareExt] WARNING: Could not find way to open main app")
     }
     
     private func completeWithSuccess() {

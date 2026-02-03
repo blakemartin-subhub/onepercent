@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -14,7 +14,6 @@
 		2E692BDAF67E0E0C6EC528A0 /* MatchDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201E6304B765B8A6EE177362 /* MatchDetailView.swift */; };
 		36DFCECE7B7A139497DF2FDD /* OnePercentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4B0805B9B186AFD46865EE /* OnePercentApp.swift */; };
 		3C2C6048D2248337353A4272 /* NewMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA04E66F72EDD4B5794492AD /* NewMatchView.swift */; };
-		3F35EC574B36D6E9D4E3F8B3 /* SuggestionsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44895C3B617EC7513B39FFA7 /* SuggestionsRow.swift */; };
 		55858116D07FBE74682E8648 /* MatchListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1EC937784EF1C6539074C3D /* MatchListView.swift */; };
 		582462E74C96718E7AD9E7B6 /* OnePercentShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4A7D5BF9780968A1E921A21B /* OnePercentShare.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		5ACDBCE91271F8844287158D /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EA2A4ABC70A8A61376B06A7 /* SceneDelegate.swift */; };
@@ -23,7 +22,6 @@
 		7FBFC0C1E0786B8A46C01F21 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = CB852D635797D8CABACF4B42 /* LaunchScreen.storyboard */; };
 		7FD8E9DB63064AD4225552CC /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E912DADFCE7240544EA614 /* SettingsView.swift */; };
 		7FE68132E214CEFA907A194F /* VideoProcessingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19C9D39D1A8C1779002D635 /* VideoProcessingService.swift */; };
-		868868C84CB74C2C94F9BEB0 /* MatchChipsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4EF1A494D81502238AFC9A5 /* MatchChipsRow.swift */; };
 		8E92E0C9F56DD4381BC81D67 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = BB5442CC449FC1309A2F4535 /* SharedKit */; };
 		90D54619D8AF8E2397E79422 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3334939C25ED3C6014C1D835 /* SharedKit */; };
 		941768EB10A25066D9E7FA50 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA93B1AA7DAC711B73520A44 /* APIClient.swift */; };
@@ -34,11 +32,13 @@
 		ABC70245347574EB41861DE9 /* WelcomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B69DD05E995E4A1B9FDF20D /* WelcomeView.swift */; };
 		CB19BADB7241A2B1AAC835D9 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374A9A5EF05BB63964E78375 /* RootView.swift */; };
 		D351183B5F278D3D5C26DB45 /* OCRProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ECD7EB30BADE47F45A2D099 /* OCRProgressView.swift */; };
-		D659A79A8DAB50F5B3D26B51 /* ControlsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D222E2402E08A32EB86617 /* ControlsRow.swift */; };
 		D8DBAE3ED4C32EF68138239E /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */; };
 		E540C026D1B21E7F411B48C4 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C33908835BF14F34A4907E /* OCRService.swift */; };
 		FCAD989433D0111898513075 /* OnePercentKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 71ACC4C442B8BCB9EBD889B2 /* OnePercentKeyboard.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FF87522517048CD3D2747079 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0F493D010570E70CFDA697 /* ShareViewController.swift */; };
+		KBAPI000000000000000002 /* KeyboardAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBAPI000000000000000001 /* KeyboardAPIClient.swift */; };
+		KBOCR000000000000000002 /* KeyboardOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBOCR000000000000000001 /* KeyboardOCRService.swift */; };
+		KBVID000000000000000002 /* KeyboardVideoService.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBVID000000000000000001 /* KeyboardVideoService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,28 +77,26 @@
 		037379BD8D4948746B6AAEC4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		1C4B0805B9B186AFD46865EE /* OnePercentApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnePercentApp.swift; sourceTree = "<group>"; };
 		201E6304B765B8A6EE177362 /* MatchDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchDetailView.swift; sourceTree = "<group>"; };
-		2562DCAD11521D83C1FE82B3 /* OnePercent.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OnePercent.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2562DCAD11521D83C1FE82B3 /* OnePercent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OnePercent.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		259249EF58804B40F7AA4FB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		26DF2A2C45877D0C5B101016 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		374A9A5EF05BB63964E78375 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		38E912DADFCE7240544EA614 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3B69DD05E995E4A1B9FDF20D /* WelcomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeView.swift; sourceTree = "<group>"; };
 		413750CF1551B1ED68E0CB8D /* KeyboardMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardMainView.swift; sourceTree = "<group>"; };
-		44895C3B617EC7513B39FFA7 /* SuggestionsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestionsRow.swift; sourceTree = "<group>"; };
-		48F3202D82B6FD715C31EBB5 /* Shared */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Shared; path = Shared; sourceTree = SOURCE_ROOT; };
-		4A7D5BF9780968A1E921A21B /* OnePercentShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OnePercentShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		48F3202D82B6FD715C31EBB5 /* Shared */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Shared; sourceTree = SOURCE_ROOT; };
+		4A7D5BF9780968A1E921A21B /* OnePercentShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OnePercentShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4E46DB800BA6A41BE124DD3B /* ProfilePreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePreviewView.swift; sourceTree = "<group>"; };
 		4EA2A4ABC70A8A61376B06A7 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		4EFC93C7FDE19492DDA064C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
 		65105C8D1080967D86BE00A2 /* OnePercentShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePercentShare.entitlements; sourceTree = "<group>"; };
 		70C33908835BF14F34A4907E /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
-		71ACC4C442B8BCB9EBD889B2 /* OnePercentKeyboard.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = OnePercentKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		71ACC4C442B8BCB9EBD889B2 /* OnePercentKeyboard.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OnePercentKeyboard.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8AFFF0E6173A1826E749DCF9 /* OnePercentKeyboard.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePercentKeyboard.entitlements; sourceTree = "<group>"; };
 		9ECD7EB30BADE47F45A2D099 /* OCRProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRProgressView.swift; sourceTree = "<group>"; };
 		A15BA8C04ADD6F7E608EFFB7 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		A19C9D39D1A8C1779002D635 /* VideoProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoProcessingService.swift; sourceTree = "<group>"; };
-		A1D222E2402E08A32EB86617 /* ControlsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsRow.swift; sourceTree = "<group>"; };
 		A1EC937784EF1C6539074C3D /* MatchListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchListView.swift; sourceTree = "<group>"; };
 		A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
 		BA93B1AA7DAC711B73520A44 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -106,11 +104,13 @@
 		BE0F493D010570E70CFDA697 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
 		CB852D635797D8CABACF4B42 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		CFAC7C0C2BA2202264DC1200 /* KeyboardViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardViewController.swift; sourceTree = "<group>"; };
-		D4EF1A494D81502238AFC9A5 /* MatchChipsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchChipsRow.swift; sourceTree = "<group>"; };
 		D6A22AA8A6BDE75F4B43EF7B /* MatchProfileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchProfileDetailView.swift; sourceTree = "<group>"; };
 		DA04E66F72EDD4B5794492AD /* NewMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMatchView.swift; sourceTree = "<group>"; };
 		E523CA2429D279632C70F993 /* MessagesResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessagesResultView.swift; sourceTree = "<group>"; };
 		EB5D49DF17CD1DDAE8BBF48F /* KeyboardSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardSetupView.swift; sourceTree = "<group>"; };
+		KBAPI000000000000000001 /* KeyboardAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAPIClient.swift; sourceTree = "<group>"; };
+		KBOCR000000000000000001 /* KeyboardOCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardOCRService.swift; sourceTree = "<group>"; };
+		KBVID000000000000000001 /* KeyboardVideoService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardVideoService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,10 +153,7 @@
 		1E675F1E8A069C3EF92B5AE8 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				A1D222E2402E08A32EB86617 /* ControlsRow.swift */,
 				413750CF1551B1ED68E0CB8D /* KeyboardMainView.swift */,
-				D4EF1A494D81502238AFC9A5 /* MatchChipsRow.swift */,
-				44895C3B617EC7513B39FFA7 /* SuggestionsRow.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -236,6 +233,7 @@
 				037379BD8D4948746B6AAEC4 /* Info.plist */,
 				CFAC7C0C2BA2202264DC1200 /* KeyboardViewController.swift */,
 				8AFFF0E6173A1826E749DCF9 /* OnePercentKeyboard.entitlements */,
+				KBSVC000000000000000001 /* Services */,
 				1E675F1E8A069C3EF92B5AE8 /* Views */,
 			);
 			path = OnePercentKeyboard;
@@ -286,6 +284,16 @@
 				395C11F176C24003F99C8611 /* Packages */,
 				B06FCF34069E64215829C68A /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		KBSVC000000000000000001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				KBAPI000000000000000001 /* KeyboardAPIClient.swift */,
+				KBOCR000000000000000001 /* KeyboardOCRService.swift */,
+				KBVID000000000000000001 /* KeyboardVideoService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -360,8 +368,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 164F29F7BC82F136F51AA7E4 /* Build configuration list for PBXProject "OnePercent" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -436,11 +442,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D659A79A8DAB50F5B3D26B51 /* ControlsRow.swift in Sources */,
+				KBAPI000000000000000002 /* KeyboardAPIClient.swift in Sources */,
+				KBOCR000000000000000002 /* KeyboardOCRService.swift in Sources */,
+				KBVID000000000000000002 /* KeyboardVideoService.swift in Sources */,
 				A65FB1AC38DBA328C5BF75B9 /* KeyboardMainView.swift in Sources */,
 				65765EC28DCA7D8468F12CBB /* KeyboardViewController.swift in Sources */,
-				868868C84CB74C2C94F9BEB0 /* MatchChipsRow.swift in Sources */,
-				3F35EC574B36D6E9D4E3F8B3 /* SuggestionsRow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -464,6 +470,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentShare/OnePercentShare.entitlements;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -483,6 +490,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OnePercent/OnePercent.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercent/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -498,6 +506,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentKeyboard/OnePercentKeyboard.entitlements;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentKeyboard/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -515,6 +524,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentShare/OnePercentShare.entitlements;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -534,6 +544,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OnePercent/OnePercent.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercent/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -549,6 +560,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentKeyboard/OnePercentKeyboard.entitlements;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentKeyboard/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -232,20 +232,16 @@ struct MatchProfileDetailView: View {
                 Spacer()
             }
             
-            if let name = user.displayName {
-                Text(name)
-                    .font(.subheadline.weight(.medium))
-            }
+            Text(user.displayName)
+                .font(.subheadline.weight(.medium))
             
-            if let tone = user.voiceAndTonePreferences {
-                HStack(spacing: 8) {
-                    Image(systemName: "waveform")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20)
-                    Text("Communication style: \(tone)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
+            HStack(spacing: 8) {
+                Image(systemName: "waveform")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text("Communication style: \(user.voiceTone.displayName)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding()

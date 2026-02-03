@@ -104,18 +104,38 @@ class KeyboardViewController: UIInputViewController {
     
     private func openMainApp() {
         // Open main app via URL scheme
-        guard let url = URL(string: "onepercent://") else { return }
+        guard let url = URL(string: "onepercent://") else {
+            print("[Keyboard] Failed to create URL")
+            return
+        }
         
-        // Use the shared extension context to open URL
+        print("[Keyboard] Attempting to open main app via URL: \(url)")
+        
+        // Method 1: Try using UIApplication.shared via shared container
+        // Note: This requires the keyboard to have "RequestsOpenAccess" set to YES in Info.plist
+        if let sharedApplication = UIApplication.value(forKey: "sharedApplication") as? UIApplication {
+            print("[Keyboard] Found UIApplication, attempting to open...")
+            sharedApplication.open(url, options: [:]) { success in
+                print("[Keyboard] Open URL result: \(success)")
+            }
+            return
+        }
+        
+        print("[Keyboard] UIApplication not available, trying responder chain...")
+        
+        // Method 2: Use responder chain (fallback)
         let selector = NSSelectorFromString("openURL:")
         var responder: UIResponder? = self
         
         while responder != nil {
             if responder!.responds(to: selector) {
+                print("[Keyboard] Found responder with openURL, attempting...")
                 responder!.perform(selector, with: url)
                 return
             }
             responder = responder?.next
         }
+        
+        print("[Keyboard] WARNING: Could not find way to open main app")
     }
 }

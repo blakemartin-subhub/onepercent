@@ -19,7 +19,7 @@ struct WelcomeView: View {
                     )
                     .frame(width: 120, height: 120)
                 
-                Image(systemName: "message.fill")
+                Image(systemName: "keyboard.fill")
                     .font(.system(size: 50))
                     .foregroundStyle(.white)
             }
@@ -29,7 +29,7 @@ struct WelcomeView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                 
-                Text("AI-powered conversation starters\nfor your dating apps")
+                Text("Your AI dating assistant\nlives in your keyboard")
                     .font(.title3)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -37,24 +37,30 @@ struct WelcomeView: View {
             
             Spacer()
             
-            // How it works
+            // How it works - keyboard centric
             VStack(alignment: .leading, spacing: 20) {
                 FeatureRow(
-                    icon: "camera.viewfinder",
-                    title: "Import Profile Screenshots",
-                    description: "Capture their dating profile with screenshots"
+                    icon: "keyboard",
+                    title: "Works Right in Your Keyboard",
+                    description: "No app switching - everything happens while you chat"
+                )
+                
+                FeatureRow(
+                    icon: "record.circle",
+                    title: "Drop a Screen Recording",
+                    description: "Record their profile, upload from the keyboard"
                 )
                 
                 FeatureRow(
                     icon: "sparkles",
-                    title: "AI Generates Messages",
-                    description: "Get personalized openers based on their profile"
+                    title: "Get Perfect Openers Instantly",
+                    description: "AI crafts personalized messages in seconds"
                 )
                 
                 FeatureRow(
-                    icon: "keyboard",
-                    title: "Use Our Keyboard",
-                    description: "Quickly insert messages in any dating app"
+                    icon: "paperplane.fill",
+                    title: "Send with One Tap",
+                    description: "Insert messages directly into any dating app"
                 )
             }
             .padding(.horizontal, 24)

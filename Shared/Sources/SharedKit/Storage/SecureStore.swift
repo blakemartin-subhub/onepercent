@@ -5,22 +5,24 @@ import CryptoKit
 public final class SecureStore: @unchecked Sendable {
     public static let shared = SecureStore()
     
-    private let keychain = KeychainHelper.shared
     private let keyIdentifier = "com.onepercent.encryption.key"
     
     private init() {}
     
     /// Get or create the encryption key
+    /// Stores key in App Group container for sharing between app and extensions
     private func getOrCreateKey() throws -> SymmetricKey {
-        // Try to load existing key from keychain
-        if let keyData = keychain.read(service: keyIdentifier, account: "main") {
+        let defaults = UserDefaults(suiteName: AppGroupConstants.groupIdentifier)
+        
+        // Try to load existing key from App Group UserDefaults
+        if let keyData = defaults?.data(forKey: keyIdentifier) {
             return SymmetricKey(data: keyData)
         }
         
-        // Generate new key
+        // Generate new key and save to App Group
         let key = SymmetricKey(size: .bits256)
         let keyData = key.withUnsafeBytes { Data($0) }
-        try keychain.save(keyData, service: keyIdentifier, account: "main")
+        defaults?.set(keyData, forKey: keyIdentifier)
         return key
     }
     
@@ -70,7 +72,8 @@ public final class SecureStore: @unchecked Sendable {
     
     /// Delete all encryption keys (for complete data wipe)
     public func deleteAllKeys() {
-        keychain.delete(service: keyIdentifier, account: "main")
+        let defaults = UserDefaults(suiteName: AppGroupConstants.groupIdentifier)
+        defaults?.removeObject(forKey: keyIdentifier)
     }
 }
 
@@ -92,16 +95,55 @@ public enum SecureStoreError: Error, LocalizedError {
 public final class KeychainHelper: @unchecked Sendable {
     public static let shared = KeychainHelper()
     
+    /// The keychain access group for sharing between app and extensions
+    /// This is derived at runtime from the app's bundle seed ID
+    private var accessGroup: String? {
+        // Get the team ID from the app's entitlements
+        guard let teamID = Bundle.main.infoDictionary?["AppIdentifierPrefix"] as? String ??
+              getTeamIdFromProvisioning() else {
+            return nil
+        }
+        let cleanTeamID = teamID.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return "\(cleanTeamID).com.blakemartin.onepercent.shared"
+    }
+    
+    /// Try to get team ID from the embedded provisioning profile
+    private func getTeamIdFromProvisioning() -> String? {
+        // First try to query an existing keychain item to get the access group
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "com.onepercent.teamid.check",
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        var result: AnyObject?
+        if SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+           let attrs = result as? [String: Any],
+           let group = attrs[kSecAttrAccessGroup as String] as? String {
+            // Extract team ID from access group (format: TEAMID.bundleid)
+            let components = group.components(separatedBy: ".")
+            if let teamID = components.first, !teamID.isEmpty {
+                return teamID
+            }
+        }
+        return nil
+    }
+    
     private init() {}
     
     public func save(_ data: Data, service: String, account: String) throws {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecAttrAccessGroup as String: "$(AppIdentifierPrefix)com.onepercent.shared",
             kSecValueData as String: data
         ]
+        
+        // Add access group if available for sharing between app and extensions
+        if let group = accessGroup {
+            query[kSecAttrAccessGroup as String] = group
+        }
         
         // Delete any existing item
         SecItemDelete(query as CFDictionary)
@@ -114,14 +156,17 @@ public final class KeychainHelper: @unchecked Sendable {
     }
     
     public func read(service: String, account: String) -> Data? {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecAttrAccessGroup as String: "$(AppIdentifierPrefix)com.onepercent.shared",
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
+        
+        if let group = accessGroup {
+            query[kSecAttrAccessGroup as String] = group
+        }
         
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -131,12 +176,16 @@ public final class KeychainHelper: @unchecked Sendable {
     }
     
     public func delete(service: String, account: String) {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecAttrAccessGroup as String: "$(AppIdentifierPrefix)com.onepercent.shared"
+            kSecAttrAccount as String: account
         ]
+        
+        if let group = accessGroup {
+            query[kSecAttrAccessGroup as String] = group
+        }
+        
         SecItemDelete(query as CFDictionary)
     }
 }
