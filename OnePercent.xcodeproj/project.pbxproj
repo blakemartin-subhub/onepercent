@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		04E094BE51085202E058670C /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */; };
+		PROFIMPORT00000000000002 /* ProfileImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROFIMPORT00000000000001 /* ProfileImportView.swift */; };
 		17A34F0897BE2D5C208B084C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 259249EF58804B40F7AA4FB0 /* Assets.xcassets */; };
 		18A664F070FE700F36820AAF /* MessagesResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523CA2429D279632C70F993 /* MessagesResultView.swift */; };
 		2D46CF783B4D433EBD0AA031 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8E7EF8BDBCA904505D490669 /* SharedKit */; };
@@ -99,6 +100,7 @@
 		A19C9D39D1A8C1779002D635 /* VideoProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoProcessingService.swift; sourceTree = "<group>"; };
 		A1EC937784EF1C6539074C3D /* MatchListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchListView.swift; sourceTree = "<group>"; };
 		A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
+		PROFIMPORT00000000000001 /* ProfileImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImportView.swift; sourceTree = "<group>"; };
 		BA93B1AA7DAC711B73520A44 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		BBC29AC92033E86F63CE96AD /* OnePercent.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePercent.entitlements; sourceTree = "<group>"; };
 		BE0F493D010570E70CFDA697 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -171,6 +173,7 @@
 			children = (
 				EB5D49DF17CD1DDAE8BBF48F /* KeyboardSetupView.swift */,
 				64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */,
+				PROFIMPORT00000000000001 /* ProfileImportView.swift */,
 				A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */,
 				3B69DD05E995E4A1B9FDF20D /* WelcomeView.swift */,
 			);
@@ -430,6 +433,7 @@
 				36DFCECE7B7A139497DF2FDD /* OnePercentApp.swift in Sources */,
 				6C9A97C3973E813C8676B12D /* ProfilePreviewView.swift in Sources */,
 				04E094BE51085202E058670C /* ProfileSetupView.swift in Sources */,
+				PROFIMPORT00000000000002 /* ProfileImportView.swift in Sources */,
 				CB19BADB7241A2B1AAC835D9 /* RootView.swift in Sources */,
 				5ACDBCE91271F8844287158D /* SceneDelegate.swift in Sources */,
 				7FD8E9DB63064AD4225552CC /* SettingsView.swift in Sources */,

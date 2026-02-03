@@ -6,7 +6,7 @@ struct ProfileSetupView: View {
     let onComplete: () -> Void
     
     @State private var name = ""
-    @State private var selectedTone: VoiceTone = .playful
+    @State private var selectedTones: Set<VoiceTone> = [.playful]  // Multi-select
     @State private var selectedEmojiStyle: EmojiStyle = .light
     @State private var selectedBoundaries: Set<String> = []
     
@@ -52,13 +52,13 @@ struct ProfileSetupView: View {
                 }
                 .padding(.horizontal, 24)
                 
-                // Voice/Tone
+                // Voice/Tone - Multi-select
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Your Vibe")
                         .font(.subheadline)
                         .fontWeight(.medium)
                     
-                    Text("How do you want your messages to sound?")
+                    Text("Select one or more styles for your messages")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     
@@ -66,9 +66,17 @@ struct ProfileSetupView: View {
                         ForEach(VoiceTone.allCases, id: \.self) { tone in
                             ToneButton(
                                 tone: tone,
-                                isSelected: selectedTone == tone
+                                isSelected: selectedTones.contains(tone)
                             ) {
-                                selectedTone = tone
+                                // Toggle selection - allow multiple
+                                if selectedTones.contains(tone) {
+                                    // Don't allow deselecting if it's the only one
+                                    if selectedTones.count > 1 {
+                                        selectedTones.remove(tone)
+                                    }
+                                } else {
+                                    selectedTones.insert(tone)
+                                }
                             }
                         }
                     }
@@ -169,9 +177,11 @@ struct ProfileSetupView: View {
     }
     
     private func saveAndContinue() {
+        let tonesArray = Array(selectedTones)
         profile = UserProfile(
             displayName: name.trimmingCharacters(in: .whitespaces),
-            voiceTone: selectedTone,
+            voiceTone: tonesArray.first ?? .playful,  // Primary tone
+            voiceTones: tonesArray,  // All selected tones
             hardBoundaries: Array(selectedBoundaries),
             emojiStyle: selectedEmojiStyle
         )

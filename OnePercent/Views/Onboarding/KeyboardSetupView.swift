@@ -3,8 +3,10 @@ import SwiftUI
 struct KeyboardSetupView: View {
     let onContinue: () -> Void
     @State private var currentStep = 0
+    @State private var animatingStep = 0  // For the fill animation
     @State private var hasCheckedKeyboard = false
     @State private var showingFullAccessWarning = false
+    @State private var isAnimatingSequence = false
     
     private let steps = [
         SetupStep(
@@ -27,9 +29,9 @@ struct KeyboardSetupView: View {
         ),
         SetupStep(
             number: 4,
-            title: "Start Using!",
+            title: "You're Ready!",
             description: "While typing, tap 🌐 to switch to OnePercent",
-            icon: "globe"
+            icon: "checkmark.circle"
         )
     ]
     
@@ -57,13 +59,15 @@ struct KeyboardSetupView: View {
                 ForEach(steps.indices, id: \.self) { index in
                     SetupStepRow(
                         step: steps[index],
-                        isActive: index == currentStep,
-                        isCompleted: index < currentStep,
-                        isRequired: index == 2 // Full Access step
+                        isActive: index == currentStep || index == animatingStep,
+                        isCompleted: index < animatingStep,
+                        isRequired: index == 2 && index >= animatingStep // Full Access step
                     )
                     .onTapGesture {
-                        withAnimation {
-                            currentStep = index
+                        if !isAnimatingSequence {
+                            withAnimation {
+                                currentStep = index
+                            }
                         }
                     }
                 }
@@ -158,6 +162,39 @@ struct KeyboardSetupView: View {
     }
     
     private func openKeyboardSettings() {
+        // Animate the step sequence before opening settings
+        isAnimatingSequence = true
+        
+        // Step 1 is already highlighted, animate step 2
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                animatingStep = 2
+            }
+        }
+        
+        // Animate step 3
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                animatingStep = 3
+            }
+        }
+        
+        // After animation sequence (0.75s), open settings and schedule step 4 fill
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            // Open settings
+            actuallyOpenSettings()
+            
+            // Fill step 4 after 2 seconds (simulating user completing the steps)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    animatingStep = 4
+                }
+                isAnimatingSequence = false
+            }
+        }
+    }
+    
+    private func actuallyOpenSettings() {
         // Try different URL schemes for keyboard settings (iOS version dependent)
         let keyboardURLs = [
             "prefs:root=General&path=Keyboard/KEYBOARDS",  // iOS 15+

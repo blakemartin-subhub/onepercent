@@ -7,10 +7,12 @@ export interface UserProfile {
   displayName: string;
   ageRange?: string;
   bio?: string;
-  voiceTone: 'playful' | 'direct' | 'witty' | 'warm' | 'confident' | 'casual';
+  voiceTone: 'playful' | 'direct' | 'witty' | 'warm' | 'confident' | 'spicy';
+  voiceTones?: ('playful' | 'direct' | 'witty' | 'warm' | 'confident' | 'spicy')[];
   hardBoundaries: string[];
   datingIntent?: string;
   emojiStyle: 'none' | 'light' | 'heavy';
+  profileContext?: string;  // OCR'd user's own dating profile
 }
 
 export interface MatchProfile {

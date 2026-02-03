@@ -7,9 +7,11 @@ public struct UserProfile: Codable, Identifiable, Sendable {
     public var ageRange: String?
     public var bio: String?
     public var voiceTone: VoiceTone
+    public var voiceTones: [VoiceTone]  // Multiple tones
     public var hardBoundaries: [String]
     public var datingIntent: String?
     public var emojiStyle: EmojiStyle
+    public var profileContext: String?  // OCR'd profile info
     public var createdAt: Date
     public var updatedAt: Date
     
@@ -19,9 +21,11 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         ageRange: String? = nil,
         bio: String? = nil,
         voiceTone: VoiceTone = .playful,
+        voiceTones: [VoiceTone] = [],
         hardBoundaries: [String] = [],
         datingIntent: String? = nil,
         emojiStyle: EmojiStyle = .light,
+        profileContext: String? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -30,9 +34,11 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         self.ageRange = ageRange
         self.bio = bio
         self.voiceTone = voiceTone
+        self.voiceTones = voiceTones
         self.hardBoundaries = hardBoundaries
         self.datingIntent = datingIntent
         self.emojiStyle = emojiStyle
+        self.profileContext = profileContext
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -45,7 +51,7 @@ public enum VoiceTone: String, Codable, CaseIterable, Sendable {
     case witty = "witty"
     case warm = "warm"
     case confident = "confident"
-    case casual = "casual"
+    case spicy = "spicy"
     
     public var displayName: String {
         switch self {
@@ -54,7 +60,7 @@ public enum VoiceTone: String, Codable, CaseIterable, Sendable {
         case .witty: return "Witty"
         case .warm: return "Warm"
         case .confident: return "Confident"
-        case .casual: return "Casual"
+        case .spicy: return "Spicy 🔥"
         }
     }
     
@@ -65,7 +71,7 @@ public enum VoiceTone: String, Codable, CaseIterable, Sendable {
         case .witty: return "Clever, quick, intellectually playful"
         case .warm: return "Friendly, genuine, emotionally open"
         case .confident: return "Self-assured, bold, engaging"
-        case .casual: return "Relaxed, easygoing, conversational"
+        case .spicy: return "Looking for short term fun"
         }
     }
 }

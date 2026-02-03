@@ -138,11 +138,21 @@ function buildUserContext(profile: UserProfile): string {
   if (profile.bio) {
     parts.push(`Bio: ${profile.bio}`);
   }
-  if (profile.voiceTone) {
+  
+  // Handle multiple tones
+  if (profile.voiceTones && profile.voiceTones.length > 0) {
+    parts.push(`Preferred tones: ${profile.voiceTones.join(', ')}`);
+  } else if (profile.voiceTone) {
     parts.push(`Preferred tone: ${profile.voiceTone}`);
   }
+  
   if (profile.emojiStyle) {
     parts.push(`Emoji style: ${profile.emojiStyle}`);
+  }
+  
+  // Include user's own dating profile context if available
+  if (profile.profileContext) {
+    parts.push(`\nUser's dating profile details (OCR'd):\n${profile.profileContext}`);
   }
   
   return parts.join('\n') || 'No user profile provided';
