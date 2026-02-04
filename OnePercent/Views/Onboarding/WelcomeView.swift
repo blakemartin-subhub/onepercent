@@ -20,7 +20,7 @@ struct WelcomeView: View {
                 }
                 
                 VStack(spacing: 8) {
-                    Text("OnePercent")
+                    Text("One Percent")
                         .font(.system(size: 32, weight: .bold))
                         .foregroundStyle(Brand.textPrimary)
                     

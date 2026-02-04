@@ -34,17 +34,9 @@ struct MainTabView: View {
                 HomeView()
             }
             .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(0)
-            
-            NavigationStack {
-                MatchListView()
-            }
-            .tabItem {
                 Label("Matches", systemImage: "heart.fill")
             }
-            .tag(1)
+            .tag(0)
             
             NavigationStack {
                 SettingsView()
@@ -52,7 +44,7 @@ struct MainTabView: View {
             .tabItem {
                 Label("Settings", systemImage: "gearshape.fill")
             }
-            .tag(2)
+            .tag(1)
         }
         .tint(Brand.accent)
     }

@@ -9,6 +9,9 @@ struct ProfileSetupView: View {
     @State private var selectedTones: Set<VoiceTone> = [.playful]
     @State private var selectedEmojiStyle: EmojiStyle = .light
     @State private var selectedBoundaries: Set<String> = []
+    @State private var selectedActivities: Set<String> = []
+    @State private var selectedNationalities: Set<String> = []
+    @State private var selectedFirstDateGoal: FirstDateGoal? = nil
     
     private let boundaries = [
         "No sexual content",
@@ -52,6 +55,8 @@ struct ProfileSetupView: View {
                     
                     TextField("Enter your name", text: $name)
                         .textFieldStyle(.plain)
+                        .foregroundStyle(Brand.textPrimary)
+                        .tint(Brand.accent)
                         .padding(16)
                         .background(Brand.backgroundSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
@@ -59,6 +64,35 @@ struct ProfileSetupView: View {
                             RoundedRectangle(cornerRadius: Brand.radiusMedium)
                                 .stroke(Brand.border, lineWidth: 1)
                         )
+                }
+                .padding(.horizontal, 20)
+                
+                // Nationality
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your Background")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textPrimary)
+                        
+                        Text("Select all that apply - helps personalize messages")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textSecondary)
+                    }
+                    
+                    FlowLayoutView(spacing: 8) {
+                        ForEach(Nationality.allCases, id: \.rawValue) { nationality in
+                            PillButton(
+                                text: nationality.rawValue,
+                                isSelected: selectedNationalities.contains(nationality.rawValue)
+                            ) {
+                                if selectedNationalities.contains(nationality.rawValue) {
+                                    selectedNationalities.remove(nationality.rawValue)
+                                } else {
+                                    selectedNationalities.insert(nationality.rawValue)
+                                }
+                            }
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 
@@ -74,7 +108,7 @@ struct ProfileSetupView: View {
                             .foregroundStyle(Brand.textSecondary)
                     }
                     
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                         ForEach(VoiceTone.allCases, id: \.self) { tone in
                             ToneButton(
                                 tone: tone,
@@ -87,6 +121,60 @@ struct ProfileSetupView: View {
                                 } else {
                                     selectedTones.insert(tone)
                                 }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                
+                // Activities
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("What You Like To Do")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textPrimary)
+                        
+                        Text("Select all that apply")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textSecondary)
+                    }
+                    
+                    FlowLayoutView(spacing: 8) {
+                        ForEach(Activity.allCases, id: \.rawValue) { activity in
+                            PillButton(
+                                text: activity.rawValue,
+                                isSelected: selectedActivities.contains(activity.rawValue)
+                            ) {
+                                if selectedActivities.contains(activity.rawValue) {
+                                    selectedActivities.remove(activity.rawValue)
+                                } else {
+                                    selectedActivities.insert(activity.rawValue)
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+                
+                // First Date Goal
+                VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Preferred First Date")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textPrimary)
+                        
+                        Text("Messages will subtly lead toward this")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textSecondary)
+                    }
+                    
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                        ForEach(FirstDateGoal.allCases, id: \.self) { goal in
+                            ToneButton(
+                                text: goal.displayName,
+                                isSelected: selectedFirstDateGoal == goal
+                            ) {
+                                selectedFirstDateGoal = goal
                             }
                         }
                     }
@@ -126,7 +214,7 @@ struct ProfileSetupView: View {
                     
                     VStack(spacing: 8) {
                         ForEach(boundaries, id: \.self) { boundary in
-                            BoundaryRow(
+                            ProfileBoundaryRow(
                                 text: boundary,
                                 isSelected: selectedBoundaries.contains(boundary)
                             ) {
@@ -165,41 +253,131 @@ struct ProfileSetupView: View {
             voiceTone: tonesArray.first ?? .playful,
             voiceTones: tonesArray,
             hardBoundaries: Array(selectedBoundaries),
-            emojiStyle: selectedEmojiStyle
+            emojiStyle: selectedEmojiStyle,
+            activities: Array(selectedActivities),
+            nationalities: Array(selectedNationalities),
+            firstDateGoal: selectedFirstDateGoal
         )
         onComplete()
     }
 }
 
 struct ToneButton: View {
-    let tone: VoiceTone
+    let text: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    init(tone: VoiceTone, isSelected: Bool, action: @escaping () -> Void) {
+        self.text = tone.displayName
+        self.isSelected = isSelected
+        self.action = action
+    }
+    
+    init(text: String, isSelected: Bool, action: @escaping () -> Void) {
+        self.text = text
+        self.isSelected = isSelected
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isSelected ? Brand.accent : Brand.textPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(isSelected ? Brand.accentLight : Brand.backgroundSecondary)
+                .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Brand.radiusMedium)
+                        .stroke(isSelected ? Brand.accent : Brand.border, lineWidth: isSelected ? 2 : 1)
+                )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+struct PillButton: View {
+    let text: String
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Text(tone.displayName)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(isSelected ? Brand.accent : Brand.textPrimary)
-                
-                Text(tone.description)
-                    .font(.caption2)
-                    .foregroundStyle(Brand.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-            }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 8)
-            .frame(maxWidth: .infinity)
-            .background(isSelected ? Brand.accentLight : Brand.backgroundSecondary)
-            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
-            .overlay(
-                RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                    .stroke(isSelected ? Brand.accent : Brand.border, lineWidth: isSelected ? 2 : 1)
-            )
+            Text(text)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(isSelected ? .white : Brand.textPrimary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(isSelected ? Brand.accent : Brand.backgroundSecondary)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .stroke(isSelected ? Brand.accent : Brand.border, lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct FlowLayoutView<Content: View>: View {
+    let spacing: CGFloat
+    let content: () -> Content
+    
+    init(spacing: CGFloat = 8, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
+    
+    var body: some View {
+        ProfileFlowLayout(spacing: spacing) {
+            content()
+        }
+    }
+}
+
+struct ProfileFlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
+                                       y: bounds.minY + result.positions[index].y),
+                          proposal: .unspecified)
+        }
+    }
+    
+    struct FlowResult {
+        var size: CGSize = .zero
+        var positions: [CGPoint] = []
+        
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var x: CGFloat = 0
+            var y: CGFloat = 0
+            var rowHeight: CGFloat = 0
+            
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                
+                if x + size.width > maxWidth && x > 0 {
+                    x = 0
+                    y += rowHeight + spacing
+                    rowHeight = 0
+                }
+                
+                positions.append(CGPoint(x: x, y: y))
+                rowHeight = max(rowHeight, size.height)
+                x += size.width + spacing
+            }
+            
+            self.size = CGSize(width: maxWidth, height: y + rowHeight)
+        }
     }
 }
 
@@ -226,7 +404,7 @@ struct EmojiStyleButton: View {
     }
 }
 
-struct BoundaryRow: View {
+struct ProfileBoundaryRow: View {
     let text: String
     let isSelected: Bool
     let action: () -> Void

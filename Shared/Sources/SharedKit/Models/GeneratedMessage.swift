@@ -21,6 +21,21 @@ public struct GeneratedMessageSet: Codable, Identifiable, Sendable {
         self.toneUsed = toneUsed
         self.createdAt = createdAt
     }
+    
+    // Defensive decoder
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        matchId = try container.decodeIfPresent(UUID.self, forKey: .matchId) ?? UUID()
+        messages = try container.decodeIfPresent([GeneratedMessage].self, forKey: .messages) ?? []
+        toneUsed = try container.decodeIfPresent(VoiceTone.self, forKey: .toneUsed) ?? .playful
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, matchId, messages, toneUsed, createdAt
+    }
 }
 
 /// A single generated message
@@ -49,6 +64,23 @@ public struct GeneratedMessage: Codable, Identifiable, Sendable {
         self.riskFlags = riskFlags
         self.reasoning = reasoning
         self.potentialOutcome = potentialOutcome
+    }
+    
+    // Defensive decoder - uses try? to silently handle any decoding failures
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = (try? container.decode(UUID.self, forKey: .id)) ?? UUID()
+        type = (try? container.decode(MessageType.self, forKey: .type)) ?? .opener
+        text = (try? container.decode(String.self, forKey: .text)) ?? ""
+        order = try? container.decode(Int.self, forKey: .order)
+        riskFlags = try? container.decode([String].self, forKey: .riskFlags)
+        reasoning = try? container.decode(String.self, forKey: .reasoning)
+        potentialOutcome = try? container.decode(String.self, forKey: .potentialOutcome)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, type, text, order, riskFlags, reasoning, potentialOutcome
     }
     
     /// Get message broken into separate lines

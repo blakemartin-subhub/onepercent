@@ -107,6 +107,18 @@ public struct ShareInboxManifest: Codable, Sendable {
         self.createdAt = createdAt
     }
     
+    // Defensive decoder
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        imageFiles = try container.decodeIfPresent([String].self, forKey: .imageFiles) ?? []
+        videoFile = try container.decodeIfPresent(String.self, forKey: .videoFile)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case imageFiles, videoFile, createdAt
+    }
+    
     /// Check if this manifest contains a video
     public var hasVideo: Bool {
         videoFile != nil

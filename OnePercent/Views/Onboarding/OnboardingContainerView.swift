@@ -9,28 +9,36 @@ struct OnboardingContainerView: View {
     
     var body: some View {
         TabView(selection: $currentStep) {
+            // Step 0: Welcome
             WelcomeView(onContinue: { currentStep = 1 })
                 .tag(0)
             
-            KeyboardSetupView(onContinue: { currentStep = 2 })
+            // Step 1: Profile Import (optional OCR of user's own dating profile)
+            ProfileImportView(profileContext: $profileContext, onContinue: { currentStep = 2 })
                 .tag(1)
             
-            ProfileImportView(profileContext: $profileContext, onContinue: { currentStep = 3 })
+            // Step 2: Profile Setup (name, vibe, nationality, activities, etc.)
+            ProfileSetupView(profile: $userProfile, onComplete: saveProfileAndContinue)
                 .tag(2)
             
-            ProfileSetupView(profile: $userProfile, onComplete: completeOnboarding)
+            // Step 3: Keyboard Setup (at the end, so profile is saved before leaving app)
+            KeyboardSetupView(onContinue: completeOnboarding)
                 .tag(3)
         }
         .tabViewStyle(.page(indexDisplayMode: .never))
         .animation(.easeInOut, value: currentStep)
     }
     
-    private func completeOnboarding() {
-        // Add profile context if imported
+    private func saveProfileAndContinue() {
+        // Save profile before keyboard setup step (in case user leaves app for Settings)
         if let context = profileContext {
             userProfile.profileContext = context
         }
         appState.saveUserProfile(userProfile)
+        currentStep = 3
+    }
+    
+    private func completeOnboarding() {
         appState.completeOnboarding()
     }
 }

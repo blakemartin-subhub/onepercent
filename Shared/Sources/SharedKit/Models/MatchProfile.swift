@@ -61,6 +61,31 @@ public struct MatchProfile: Codable, Identifiable, Sendable, Hashable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+    
+    // Custom decoder for defensive decoding
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        matchId = try container.decodeIfPresent(UUID.self, forKey: .matchId) ?? UUID()
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        age = try container.decodeIfPresent(Int.self, forKey: .age)
+        bio = try container.decodeIfPresent(String.self, forKey: .bio)
+        prompts = try container.decodeIfPresent([PromptAnswer].self, forKey: .prompts) ?? []
+        interests = try container.decodeIfPresent([String].self, forKey: .interests) ?? []
+        job = try container.decodeIfPresent(String.self, forKey: .job)
+        school = try container.decodeIfPresent(String.self, forKey: .school)
+        location = try container.decodeIfPresent(String.self, forKey: .location)
+        hooks = try container.decodeIfPresent([String].self, forKey: .hooks) ?? []
+        rawOcrText = try container.decodeIfPresent(String.self, forKey: .rawOcrText)
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case matchId, name, age, bio, prompts, interests
+        case job, school, location, hooks, rawOcrText
+        case createdAt, updatedAt
+    }
 }
 
 /// A prompt and its answer from the dating profile
@@ -73,6 +98,18 @@ public struct PromptAnswer: Codable, Identifiable, Sendable, Hashable {
         self.id = id
         self.prompt = prompt
         self.answer = answer
+    }
+    
+    // Defensive decoder
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        prompt = try container.decodeIfPresent(String.self, forKey: .prompt) ?? ""
+        answer = try container.decodeIfPresent(String.self, forKey: .answer) ?? ""
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case id, prompt, answer
     }
 }
 
@@ -94,5 +131,17 @@ public struct MatchIndexEntry: Codable, Identifiable, Sendable {
         self.matchId = match.matchId
         self.name = match.name
         self.updatedAt = match.updatedAt
+    }
+    
+    // Defensive decoder
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        matchId = try container.decodeIfPresent(UUID.self, forKey: .matchId) ?? UUID()
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case matchId, name, updatedAt
     }
 }

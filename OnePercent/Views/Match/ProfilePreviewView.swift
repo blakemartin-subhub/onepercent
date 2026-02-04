@@ -20,24 +20,18 @@ struct ProfilePreviewView: View {
                 VStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.pink.opacity(0.3), .purple.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Brand.gradient)
                             .frame(width: 80, height: 80)
                         
                         Text((editedName.isEmpty ? "?" : editedName).prefix(1).uppercased())
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(.white)
                     }
                     
                     Text("Review Extracted Profile")
                         .font(.headline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                 }
                 .padding(.top, 20)
                 
@@ -81,6 +75,7 @@ struct ProfilePreviewView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Interests")
                             .font(.headline)
+                            .foregroundStyle(Brand.textPrimary)
                             .padding(.horizontal, 24)
                         
                         FlowLayout(spacing: 8) {
@@ -89,8 +84,8 @@ struct ProfilePreviewView: View {
                                     .font(.caption)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(Color.pink.opacity(0.1))
-                                    .foregroundStyle(.pink)
+                                    .background(Brand.accentLight)
+                                    .foregroundStyle(Brand.accent)
                                     .clipShape(Capsule())
                             }
                         }
@@ -103,23 +98,25 @@ struct ProfilePreviewView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "lightbulb.fill")
-                                .foregroundStyle(.yellow)
+                                .foregroundStyle(Brand.warning)
                             Text("Conversation Hooks")
                                 .font(.headline)
+                                .foregroundStyle(Brand.textPrimary)
                         }
                         .padding(.horizontal, 24)
                         
                         ForEach(profile.hooks, id: \.self) { hook in
                             HStack {
                                 Image(systemName: "sparkle")
-                                    .foregroundStyle(.pink)
+                                    .foregroundStyle(Brand.accent)
                                 Text(hook)
                                     .font(.subheadline)
+                                    .foregroundStyle(Brand.textPrimary)
                             }
                             .padding()
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.yellow.opacity(0.1))
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .background(Brand.warning.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                             .padding(.horizontal, 24)
                         }
                     }
@@ -136,20 +133,14 @@ struct ProfilePreviewView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .background(Brand.buttonGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                     }
                     
                     Button(action: onCancel) {
                         Text("Start Over")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Brand.textSecondary)
                     }
                 }
                 .padding(.horizontal, 24)

@@ -8,11 +8,11 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>OnePercent keyboard needs to connect to your local server to analyze profiles and generate messages.</string>
+	<string>One Percent keyboard needs to connect to your local server to analyze profiles and generate messages.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>OnePercent</string>
+	<string>One Percent</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

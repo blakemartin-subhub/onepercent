@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { generateMessages, moderateContent } from '../services/openai';
+import type { MessageReasoning } from '../types';
 
 export const messageRouter = Router();
 
@@ -11,10 +12,15 @@ const userProfileSchema = z.object({
   displayName: z.string(),
   ageRange: z.string().optional(),
   bio: z.string().optional(),
-  voiceTone: z.enum(['playful', 'direct', 'witty', 'warm', 'confident', 'casual']),
+  voiceTone: z.enum(['playful', 'direct', 'witty', 'warm', 'confident', 'spicy']),
+  voiceTones: z.array(z.string()).optional(),
   hardBoundaries: z.array(z.string()).default([]),
   datingIntent: z.string().optional(),
   emojiStyle: z.enum(['none', 'light', 'heavy']).default('light'),
+  activities: z.array(z.string()).optional(),
+  nationalities: z.array(z.string()).optional(),
+  firstDateGoal: z.enum(['coffee', 'drinks', 'dinner', 'activity', 'cooking', 'walk_park']).optional(),
+  profileContext: z.string().optional(),
 });
 
 const matchProfileSchema = z.object({
@@ -50,6 +56,7 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
     // Validate request body
     const validation = generateMessagesSchema.safeParse(req.body);
     if (!validation.success) {
+      console.error(`[message/generate] Validation failed:`, validation.error.errors);
       return res.status(400).json({
         error: 'Invalid request',
         details: validation.error.errors,
@@ -57,9 +64,7 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
     }
 
     const { userProfile, matchProfile, tone, maxChars, conversationContext } = validation.data;
-
-    // Log request
-    console.log(`[message/generate] Generating messages for match: ${matchProfile.name || 'unknown'}`);
+    console.log(`[message/generate] Generating for: ${matchProfile.name || 'unknown'}, tone: ${userProfile.voiceTone}`);
 
     // Generate messages using OpenAI
     const result = await generateMessages(
@@ -74,7 +79,26 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
       id: uuidv4(),
     }));
     
-    const reasoning = result.reasoning;
+    // Convert reasoning to string for backward compatibility with iOS
+    let reasoning: string | undefined;
+    if (result.reasoning) {
+      if (typeof result.reasoning === 'string') {
+        reasoning = result.reasoning;
+      } else {
+        // Serialize object reasoning to readable string
+        const r = result.reasoning as MessageReasoning;
+        const parts: string[] = [];
+        if (r.whoAmI) parts.push(`Who I am: ${r.whoAmI}`);
+        if (r.whoIsShe) parts.push(`Who she is: ${r.whoIsShe}`);
+        if (r.hookUsed) parts.push(`Hook used: ${r.hookUsed}`);
+        if (r.ctaDirection) parts.push(`CTA direction: ${r.ctaDirection}`);
+        if (r.whyThisApproach) parts.push(`Approach: ${r.whyThisApproach}`);
+        if (r.conversationState) parts.push(`Conversation state: ${r.conversationState}`);
+        if (r.approach) parts.push(`Approach: ${r.approach}`);
+        if (r.nextMove) parts.push(`Next move: ${r.nextMove}`);
+        reasoning = parts.join(' | ');
+      }
+    }
 
     // Run moderation on generated messages
     const moderatedMessages = await Promise.all(

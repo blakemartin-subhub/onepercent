@@ -21,17 +21,13 @@ struct OCRProgressView: View {
             // Animated icon
             ZStack {
                 Circle()
-                    .stroke(Color.pink.opacity(0.2), lineWidth: 8)
+                    .stroke(Brand.accentLight, lineWidth: 8)
                     .frame(width: 120, height: 120)
                 
                 Circle()
                     .trim(from: 0, to: animatedProgress)
                     .stroke(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
+                        Brand.gradient,
                         style: StrokeStyle(lineWidth: 8, lineCap: .round)
                     )
                     .frame(width: 120, height: 120)
@@ -39,23 +35,18 @@ struct OCRProgressView: View {
                 
                 Image(systemName: "sparkles")
                     .font(.system(size: 40))
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .foregroundStyle(Brand.accent)
             }
             
             VStack(spacing: 12) {
                 Text("Processing")
                     .font(.title)
                     .fontWeight(.bold)
+                    .foregroundStyle(Brand.textPrimary)
                 
                 Text(messages[min(currentMessage, messages.count - 1)])
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
                     .animation(.easeInOut, value: currentMessage)
             }
             
@@ -64,17 +55,11 @@ struct OCRProgressView: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.pink.opacity(0.2))
+                            .fill(Brand.accentLight)
                             .frame(height: 8)
                         
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.pink, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .fill(Brand.buttonGradient)
                             .frame(width: geometry.size.width * animatedProgress, height: 8)
                     }
                 }
@@ -82,13 +67,14 @@ struct OCRProgressView: View {
                 
                 Text("\(Int(animatedProgress * 100))%")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Brand.textSecondary)
             }
             .padding(.horizontal, 60)
             
             Spacer()
             Spacer()
         }
+        .background(Brand.background)
         .onChange(of: progress) { _, newValue in
             withAnimation(.easeInOut(duration: 0.3)) {
                 animatedProgress = newValue

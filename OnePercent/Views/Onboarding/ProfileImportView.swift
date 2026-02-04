@@ -258,6 +258,15 @@ struct ProfileImportView: View {
     private func processVideo(_ item: PhotosPickerItem) {
         processingState = .processing(progress: 0)
         
+        // Auto-advance after 2.5 seconds while OCR continues in background
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            // Only advance if still processing (not error)
+            if case .processing = processingState {
+                onContinue()
+            }
+        }
+        
+        // Continue OCR in background
         Task {
             do {
                 guard let video = try await item.loadTransferable(type: VideoTransferable.self) else {
@@ -267,13 +276,16 @@ struct ProfileImportView: View {
                 let videoService = VideoProcessingService()
                 let text = try await videoService.extractTextFromVideo(at: video.url) { progress, _ in
                     Task { @MainActor in
-                        processingState = .processing(progress: progress)
+                        // Only update progress if still on this view
+                        if case .processing = processingState {
+                            processingState = .processing(progress: progress)
+                        }
                     }
                 }
                 
                 await MainActor.run {
                     extractedText = text
-                    profileContext = text
+                    profileContext = text  // Updates binding even if user moved to next step
                     processingState = .success
                     selectedVideoItem = nil
                 }
@@ -290,6 +302,15 @@ struct ProfileImportView: View {
     private func processScreenshots(_ items: [PhotosPickerItem]) {
         processingState = .processing(progress: 0)
         
+        // Auto-advance after 2.5 seconds while OCR continues in background
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            // Only advance if still processing (not error)
+            if case .processing = processingState {
+                onContinue()
+            }
+        }
+        
+        // Continue OCR in background
         Task {
             do {
                 var allText = ""
@@ -301,17 +322,20 @@ struct ProfileImportView: View {
                         continue
                     }
                     
-                    let text = try await ocrService.recognizeText(in: image)
+                    let text = try await ocrService.recognizeText(from: [image]) { _ in }
                     allText += text + "\n\n"
                     
                     await MainActor.run {
-                        processingState = .processing(progress: Double(index + 1) / Double(items.count))
+                        // Only update progress if still on this view
+                        if case .processing = processingState {
+                            processingState = .processing(progress: Double(index + 1) / Double(items.count))
+                        }
                     }
                 }
                 
                 await MainActor.run {
                     extractedText = allText
-                    profileContext = allText
+                    profileContext = allText  // Updates binding even if user moved to next step
                     processingState = .success
                     selectedItems = []
                 }

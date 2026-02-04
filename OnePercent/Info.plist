@@ -10,7 +10,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>OnePercent</string>
+	<string>One Percent</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -37,9 +37,9 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>OnePercent needs access to your photos to import dating profile screenshots.</string>
+	<string>One Percent needs access to your photos to import dating profile screenshots.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>OnePercent needs to connect to your local backend server to analyze profiles and generate messages.</string>
+	<string>One Percent needs to connect to your local backend server to analyze profiles and generate messages.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

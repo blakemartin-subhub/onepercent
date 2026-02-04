@@ -41,15 +41,9 @@ struct KeyboardMainView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Main content area
+            // Main content area - fills available space
             mainContentView
-            
-            // Bottom controls
-            ControlsRow(
-                onNextKeyboard: onNextKeyboard,
-                onDeleteBackward: onDeleteBackward,
-                onOpenApp: onOpenApp
-            )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(KeyboardBrand.keyboardBackground)
         .onAppear(perform: loadData)
@@ -116,8 +110,8 @@ struct KeyboardMainView: View {
             ResultsView(
                 messages: messages,
                 reasoning: reasoning,
-                onSend: { index in sendMessage(at: index) },
-                onSendAll: sendAllMessages,
+                onInsertText: { text in onInsertText(text) },
+                onSwitchKeyboard: onNextKeyboard,
                 onClose: { 
                     processingState = .idle
                     // Reload matches to show the new one
@@ -143,27 +137,27 @@ struct KeyboardMainView: View {
     // MARK: - Empty State
     
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
             
             // Icon
             ZStack {
                 Circle()
                     .fill(KeyboardBrand.accentLight.opacity(0.3))
-                    .frame(width: 70, height: 70)
+                    .frame(width: 80, height: 80)
                 
                 Image(systemName: "heart.text.square")
-                    .font(.system(size: 30))
+                    .font(.system(size: 34))
                     .foregroundStyle(KeyboardBrand.accent)
             }
             
-            VStack(spacing: 6) {
+            VStack(spacing: 8) {
                 Text("Add Your First Match")
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Text("Screen record their dating profile")
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
             }
             
@@ -177,15 +171,17 @@ struct KeyboardMainView: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
                 .background(KeyboardBrand.buttonGradient)
                 .clipShape(Capsule())
             }
             
             Spacer()
         }
-        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
     
     // MARK: - Match List
@@ -195,7 +191,7 @@ struct KeyboardMainView: View {
             // Header with add button
             HStack {
                 Text("Your Matches")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Spacer()
@@ -211,19 +207,19 @@ struct KeyboardMainView: View {
                             .font(.caption.weight(.semibold))
                     }
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
                     .background(KeyboardBrand.buttonGradient)
                     .clipShape(Capsule())
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
             
             // Match cards - vertical list
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     ForEach(matches) { match in
                         MatchRow(
                             match: match,
@@ -232,10 +228,11 @@ struct KeyboardMainView: View {
                         )
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
     // MARK: - Conversation Update
@@ -428,15 +425,19 @@ struct KeyboardMainView: View {
             } catch {
                 // Check if this is a network error and provide a better message
                 let nsError = error as NSError
-                print("[Keyboard] API error: \(nsError.domain) code: \(nsError.code)")
+                print("[Keyboard] API error: \(nsError.domain) code: \(nsError.code) - \(nsError.localizedDescription)")
                 if nsError.domain == NSURLErrorDomain {
                     switch nsError.code {
-                    case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
-                        throw KeyboardProcessingError.fullAccessRequired
+                    case NSURLErrorNotConnectedToInternet:
+                        throw KeyboardProcessingError.networkError("No internet connection")
+                    case NSURLErrorNetworkConnectionLost:
+                        throw KeyboardProcessingError.networkError("Connection lost")
                     case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
                         throw KeyboardProcessingError.serverUnreachable
+                    case -1020: // NSURLErrorNotPermittedByDNE (Local Network permission denied)
+                        throw KeyboardProcessingError.networkError("Local Network access denied. Go to Settings → Privacy → Local Network → Enable One Percent")
                     default:
-                        throw KeyboardProcessingError.networkError(nsError.localizedDescription)
+                        throw KeyboardProcessingError.networkError("Code \(nsError.code): \(nsError.localizedDescription)")
                     }
                 }
                 throw error
@@ -471,14 +472,19 @@ struct KeyboardMainView: View {
                 apiReasoning = result.reasoning
             } catch {
                 let nsError = error as NSError
+                print("[Keyboard] Generate messages error: \(nsError.domain) code: \(nsError.code) - \(nsError.localizedDescription)")
                 if nsError.domain == NSURLErrorDomain {
                     switch nsError.code {
-                    case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
-                        throw KeyboardProcessingError.fullAccessRequired
+                    case NSURLErrorNotConnectedToInternet:
+                        throw KeyboardProcessingError.networkError("No internet connection")
+                    case NSURLErrorNetworkConnectionLost:
+                        throw KeyboardProcessingError.networkError("Connection lost")
                     case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
                         throw KeyboardProcessingError.serverUnreachable
+                    case -1020: // NSURLErrorNotPermittedByDNE (Local Network permission denied)
+                        throw KeyboardProcessingError.networkError("Local Network access denied. Go to Settings → Privacy → Local Network → Enable One Percent")
                     default:
-                        throw KeyboardProcessingError.networkError(nsError.localizedDescription)
+                        throw KeyboardProcessingError.networkError("Code \(nsError.code): \(nsError.localizedDescription)")
                     }
                 }
                 throw error
@@ -516,29 +522,6 @@ struct KeyboardMainView: View {
         }
     }
     
-    // MARK: - Message Sending
-    
-    private func sendMessage(at index: Int) {
-        guard case .ready(let messages, _) = processingState,
-              index < messages.count else { return }
-        
-        onInsertText(messages[index])
-        
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.impactOccurred()
-    }
-    
-    private func sendAllMessages() {
-        guard case .ready(let messages, _) = processingState else { return }
-        
-        // Insert all messages with line breaks
-        let combined = messages.joined(separator: "\n\n")
-        onInsertText(combined)
-        
-        processingState = .idle
-    }
-    
     // MARK: - Helpers
     
     private func generateReasoning(for match: MatchProfile) -> String {
@@ -557,30 +540,30 @@ struct ProcessingView: View {
     let progress: Double?
     
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Spacer()
             
             ZStack {
                 if let progress = progress {
                     Circle()
                         .stroke(KeyboardBrand.accent.opacity(0.2), lineWidth: 4)
-                        .frame(width: 60, height: 60)
+                        .frame(width: 70, height: 70)
                     
                     Circle()
                         .trim(from: 0, to: progress)
                         .stroke(KeyboardBrand.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
-                        .frame(width: 60, height: 60)
+                        .frame(width: 70, height: 70)
                         .rotationEffect(.degrees(-90))
                 }
                 
                 Image(systemName: icon)
-                    .font(.system(size: 24))
+                    .font(.system(size: 28))
                     .foregroundStyle(KeyboardBrand.accent)
             }
             
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 Text(title)
-                    .font(.headline)
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 if let subtitle = subtitle {
@@ -592,6 +575,9 @@ struct ProcessingView: View {
             
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 }
 
@@ -607,24 +593,24 @@ struct DraftingAnimationView: View {
         VStack {
             Spacer()
             
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 // Animated pill
                 Image(systemName: "sparkles")
-                    .font(.title3)
+                    .font(.title2)
                     .foregroundStyle(KeyboardBrand.accent)
                 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Drafting for \(name)")
-                        .font(.subheadline.weight(.semibold))
+                        .font(.body.weight(.semibold))
                         .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                     
                     Text(step.rawValue + String(repeating: ".", count: dotCount))
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
             .background(KeyboardBrand.accentLight.opacity(0.2))
             .overlay(
                 Capsule()
@@ -634,6 +620,9 @@ struct DraftingAnimationView: View {
             
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
         .onAppear { animateDots() }
     }
     
@@ -649,13 +638,11 @@ struct DraftingAnimationView: View {
 struct ResultsView: View {
     let messages: [String]
     let reasoning: String
-    let onSend: (Int) -> Void
-    let onSendAll: () -> Void
+    let onInsertText: (String) -> Void
+    let onSwitchKeyboard: () -> Void
     let onClose: () -> Void
     
     @State private var confirmedIndices: Set<Int> = []
-    @State private var sendingMode = false
-    @State private var currentSendIndex = 0
     
     private var allConfirmed: Bool {
         confirmedIndices.count == messages.count
@@ -663,32 +650,26 @@ struct ResultsView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            if sendingMode {
-                // Sending mode - just the send button
-                sendingModeView
-            } else {
-                // Confirmation mode - show messages to confirm
-                confirmationModeView
-            }
-        }
-    }
-    
-    // MARK: - Confirmation Mode
-    
-    private var confirmationModeView: some View {
-        VStack(spacing: 0) {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Confirm messages")
+                    Text("Tap to send")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-                    Text("Swipe right on each to confirm")
+                    Text("Tap each message to paste")
                         .font(.caption)
                         .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
                 
                 Spacer()
+                
+                // Switch to system keyboard button
+                Button(action: onSwitchKeyboard) {
+                    Image(systemName: "keyboard")
+                        .font(.title3)
+                        .foregroundStyle(KeyboardBrand.accent)
+                }
+                .padding(.trailing, 8)
                 
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
@@ -704,25 +685,27 @@ struct ResultsView: View {
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 8) {
                     ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
-                        SwipeToConfirmPill(
+                        TapToConfirmPill(
                             text: message,
                             index: index + 1,
-                            total: messages.count,
                             isConfirmed: confirmedIndices.contains(index),
-                            onConfirm: {
+                            onTap: {
+                                // Paste the text
+                                onInsertText(message)
+                                
+                                // Mark as confirmed with animation
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     confirmedIndices.insert(index)
                                 }
+                                
                                 // Haptic feedback
                                 let generator = UIImpactFeedbackGenerator(style: .medium)
                                 generator.impactOccurred()
                                 
-                                // Auto-enter sending mode when all confirmed
-                                if confirmedIndices.count == messages.count {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                        withAnimation {
-                                            sendingMode = true
-                                        }
+                                // Auto-close when all confirmed
+                                if confirmedIndices.count + 1 == messages.count {
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                        onClose()
                                     }
                                 }
                             }
@@ -735,75 +718,18 @@ struct ResultsView: View {
             .frame(maxHeight: 180) // Fixed height for scroll area
         }
     }
-    
-    // MARK: - Sending Mode
-    
-    private var sendingModeView: some View {
-        VStack {
-            Spacer()
-            
-            Button(action: sendCurrentMessage) {
-                Text("Message \(currentSendIndex + 1) of \(messages.count)")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(KeyboardBrand.buttonGradient)
-                    .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
-            }
-            .padding(.horizontal, 24)
-            
-            Spacer()
-        }
-    }
-    
-    private func sendCurrentMessage() {
-        // Send the current message
-        onSend(currentSendIndex)
-        
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-        
-        // Move to next or close
-        if currentSendIndex < messages.count - 1 {
-            currentSendIndex += 1
-        } else {
-            // All messages sent, close
-            onClose()
-        }
-    }
 }
 
-// MARK: - Swipe to Confirm Pill
+// MARK: - Tap to Confirm Pill
 
-struct SwipeToConfirmPill: View {
+struct TapToConfirmPill: View {
     let text: String
     let index: Int
-    let total: Int
     let isConfirmed: Bool
-    let onConfirm: () -> Void
-    
-    @State private var offset: CGFloat = 0
-    @State private var isHorizontalDrag = false
-    
-    private let confirmThreshold: CGFloat = 60
+    let onTap: () -> Void
     
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Background (revealed when swiping)
-            HStack {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.title2)
-                    .foregroundStyle(KeyboardBrand.success)
-                    .padding(.leading, 16)
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(KeyboardBrand.keyboardCard)
-            .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
-            
-            // Foreground pill
+        Button(action: onTap) {
             HStack(spacing: 10) {
                 // Order indicator
                 Text("\(index)")
@@ -816,20 +742,16 @@ struct SwipeToConfirmPill: View {
                 // Message text
                 Text(text)
                     .font(.subheadline)
-                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                    .foregroundStyle(.black)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 
                 Spacer()
                 
-                // Swipe hint or confirmed indicator
+                // Confirmed indicator
                 if isConfirmed {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(KeyboardBrand.success)
-                } else {
-                    Image(systemName: "arrow.right.circle")
-                        .font(.body)
-                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary.opacity(0.5))
                 }
             }
             .padding(.horizontal, 12)
@@ -837,35 +759,8 @@ struct SwipeToConfirmPill: View {
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
-            .offset(x: isConfirmed ? 0 : offset)
-            .gesture(
-                isConfirmed ? nil : DragGesture(minimumDistance: 10)
-                    .onChanged { value in
-                        // Only activate horizontal drag if moving more horizontally than vertically
-                        let horizontalAmount = abs(value.translation.width)
-                        let verticalAmount = abs(value.translation.height)
-                        
-                        // First movement determines if this is a horizontal or vertical gesture
-                        if !isHorizontalDrag && horizontalAmount > 15 && horizontalAmount > verticalAmount * 1.5 {
-                            isHorizontalDrag = true
-                        }
-                        
-                        // Only apply offset if this is a horizontal drag going right
-                        if isHorizontalDrag && value.translation.width > 0 {
-                            offset = value.translation.width
-                        }
-                    }
-                    .onEnded { value in
-                        if isHorizontalDrag && value.translation.width > confirmThreshold {
-                            onConfirm()
-                        }
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            offset = 0
-                        }
-                        isHorizontalDrag = false
-                    }
-            )
         }
+        .disabled(isConfirmed)
         .frame(height: 50)
     }
 }
@@ -877,35 +772,38 @@ struct ErrorView: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Spacer()
             
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 32))
+                .font(.system(size: 40))
                 .foregroundStyle(KeyboardBrand.warning)
             
             Text("Something went wrong")
-                .font(.headline)
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
             
             Text(message)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 32)
             
             Button(action: onDismiss) {
                 Text("Try Again")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
                     .background(KeyboardBrand.accent)
                     .clipShape(Capsule())
             }
             
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 }
 
@@ -1022,36 +920,6 @@ struct MatchChip: View {
     }
 }
 
-// MARK: - Controls Row
-
-struct ControlsRow: View {
-    let onNextKeyboard: () -> Void
-    let onDeleteBackward: () -> Void
-    let onOpenApp: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            Button(action: onNextKeyboard) {
-                Image(systemName: "globe")
-                    .font(.title2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundStyle(KeyboardBrand.accent)
-            }
-            .frame(width: 60, height: 44)
-            
-            Spacer()
-            
-            Button(action: onDeleteBackward) {
-                Image(systemName: "delete.left")
-                    .font(.title2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-            }
-            .frame(width: 60, height: 44)
-        }
-        .background(Color(hex: "2C2C2E"))
-    }
-}
 
 // MARK: - Video Transferable
 

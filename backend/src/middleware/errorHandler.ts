@@ -39,9 +39,11 @@ export function errorHandler(
     return;
   }
 
-  // Default error response
+  // Default error response - include details in development
   res.status(500).json({
     error: 'An unexpected error occurred',
     code: 'INTERNAL_ERROR',
+    message: err.message,
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
   });
 }

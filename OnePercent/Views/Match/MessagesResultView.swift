@@ -16,28 +16,23 @@ struct MessagesResultView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.pink.opacity(0.3), .purple.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Brand.gradient)
                             .frame(width: 80, height: 80)
                         
                         Text(match.displayName.prefix(1).uppercased())
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(.white)
                     }
                     
                     Text("Messages for \(match.displayName)")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundStyle(Brand.textPrimary)
                     
                     Text("Tap to copy, or save to use from keyboard")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                 }
                 .padding(.top, 20)
                 
@@ -47,9 +42,10 @@ struct MessagesResultView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "hand.wave.fill")
-                                .foregroundStyle(.pink)
+                                .foregroundStyle(Brand.accent)
                             Text("Openers")
                                 .font(.headline)
+                                .foregroundStyle(Brand.textPrimary)
                         }
                         .padding(.horizontal, 24)
                         
@@ -70,9 +66,10 @@ struct MessagesResultView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "arrow.turn.down.right")
-                                .foregroundStyle(.purple)
+                                .foregroundStyle(Brand.accent.opacity(0.7))
                             Text("Follow-ups")
                                 .font(.headline)
+                                .foregroundStyle(Brand.textPrimary)
                         }
                         .padding(.horizontal, 24)
                         
@@ -98,14 +95,8 @@ struct MessagesResultView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .background(Brand.buttonGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                     }
                     
                     Button(action: onRegenerate) {
@@ -114,7 +105,7 @@ struct MessagesResultView: View {
                             Text("Regenerate Messages")
                         }
                         .font(.subheadline)
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(Brand.accent)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -151,6 +142,7 @@ struct MessageCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text(message.text)
                     .font(.body)
+                    .foregroundStyle(Brand.textPrimary)
                     .multilineTextAlignment(.leading)
                 
                 HStack {
@@ -160,12 +152,8 @@ struct MessageCard: View {
                         .fontWeight(.medium)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(
-                            message.type == .opener ?
-                            Color.pink.opacity(0.1) :
-                            Color.purple.opacity(0.1)
-                        )
-                        .foregroundStyle(message.type == .opener ? .pink : .purple)
+                        .background(Brand.accentLight)
+                        .foregroundStyle(Brand.accent)
                         .clipShape(Capsule())
                     
                     Spacer()
@@ -176,16 +164,16 @@ struct MessageCard: View {
                         Text(isCopied ? "Copied!" : "Tap to copy")
                     }
                     .font(.caption)
-                    .foregroundStyle(isCopied ? .green : .secondary)
+                    .foregroundStyle(isCopied ? Brand.success : Brand.textSecondary)
                 }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(Brand.backgroundSecondary)
+            .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(isCopied ? Color.green : Color.clear, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Brand.radiusLarge)
+                    .stroke(isCopied ? Brand.success : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

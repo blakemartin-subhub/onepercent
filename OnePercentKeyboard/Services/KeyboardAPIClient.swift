@@ -116,6 +116,25 @@ struct KeyboardParseProfileResponse: Decodable {
     let interests: [String]
     let hooks: [String]
     
+    // Defensive decoder - handles nulls and field name variations
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try? container.decode(String.self, forKey: .name)
+        age = try? container.decode(Int.self, forKey: .age)
+        bio = try? container.decode(String.self, forKey: .bio)
+        location = try? container.decode(String.self, forKey: .location)
+        // Backend returns "job", we store as occupation
+        occupation = (try? container.decode(String.self, forKey: .job)) ?? 
+                     (try? container.decode(String.self, forKey: .occupation))
+        // Handle null arrays gracefully
+        interests = (try? container.decode([String].self, forKey: .interests)) ?? []
+        hooks = (try? container.decode([String].self, forKey: .hooks)) ?? []
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case name, age, bio, location, occupation, job, interests, hooks
+    }
+    
     func toMatchProfile(rawOcrText: String) -> MatchProfile {
         MatchProfile(
             name: name,
@@ -139,6 +158,17 @@ struct KeyboardGenerateMessagesRequest: Encodable {
 struct KeyboardGenerateMessagesResponse: Decodable {
     let messages: [GeneratedMessage]
     let reasoning: String?
+    
+    // Defensive decoder - uses try? to silently handle any decoding failures
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        messages = (try? container.decode([GeneratedMessage].self, forKey: .messages)) ?? []
+        reasoning = try? container.decode(String.self, forKey: .reasoning)
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case messages, reasoning
+    }
 }
 
 struct KeyboardAPIErrorResponse: Decodable {

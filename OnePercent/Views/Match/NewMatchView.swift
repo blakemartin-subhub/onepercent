@@ -305,17 +305,24 @@ struct ImageSelectionView: View {
                 VStack(spacing: 20) {
                     Spacer()
                     
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.secondary)
+                    ZStack {
+                        Circle()
+                            .fill(Brand.accentLight)
+                            .frame(width: 100, height: 100)
+                        
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Brand.accent)
+                    }
                     
                     Text("Import Dating Profile")
                         .font(.title2)
                         .fontWeight(.bold)
+                        .foregroundStyle(Brand.textPrimary)
                     
                     Text("Choose screenshots or a screen recording\nof their dating profile")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Brand.textSecondary)
                         .multilineTextAlignment(.center)
                     
                     Spacer()
@@ -361,14 +368,8 @@ struct ImageSelectionView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.pink, .purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .background(Brand.buttonGradient)
+                    .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                 }
                 .onChange(of: selectedVideoItem) { _, newItem in
                     if let item = newItem {
@@ -387,11 +388,11 @@ struct ImageSelectionView: View {
                         Text(selectedImages.isEmpty ? "Select Screenshots" : "Add More Screenshots")
                     }
                     .font(.headline)
-                    .foregroundStyle(.pink)
+                    .foregroundStyle(Brand.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color.pink.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .background(Brand.accentLight)
+                    .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                 }
                 .onChange(of: selectedItems) { _, newItems in
                     loadImages(from: newItems)
@@ -407,14 +408,8 @@ struct ImageSelectionView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(
-                            LinearGradient(
-                                colors: [.pink, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .background(Brand.buttonGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                     }
                 }
                 
@@ -468,24 +463,6 @@ struct ImageSelectionView: View {
         selectedImages.remove(at: index)
         if index < selectedItems.count {
             selectedItems.remove(at: index)
-        }
-    }
-}
-
-/// Transferable wrapper for video files
-struct VideoTransferable: Transferable {
-    let url: URL
-    
-    static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(contentType: .movie) { video in
-            SentTransferredFile(video.url)
-        } importing: { received in
-            // Copy to temp location
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent(UUID().uuidString)
-                .appendingPathExtension("mp4")
-            try FileManager.default.copyItem(at: received.file, to: tempURL)
-            return VideoTransferable(url: tempURL)
         }
     }
 }

@@ -19,36 +19,31 @@ struct MatchDetailView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [.pink.opacity(0.3), .purple.opacity(0.3)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(Brand.gradient)
                             .frame(width: 100, height: 100)
                         
                         Text(match.displayName.prefix(1).uppercased())
                             .font(.system(size: 40))
                             .fontWeight(.bold)
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(.white)
                     }
                     
                     VStack(spacing: 4) {
                         Text(match.displayName)
                             .font(.title)
                             .fontWeight(.bold)
+                            .foregroundStyle(Brand.textPrimary)
                         
                         if !match.summary.isEmpty {
                             Text(match.summary)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Brand.textSecondary)
                         }
                     }
                     
                     Text("Added \(match.createdAt.formatted(date: .abbreviated, time: .omitted))")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Brand.textMuted)
                 }
                 .padding(.top, 20)
                 
@@ -72,7 +67,7 @@ struct MatchDetailView: View {
                                     Text("Regenerate")
                                 }
                                 .font(.subheadline)
-                                .foregroundStyle(.pink)
+                                .foregroundStyle(Brand.accent)
                             }
                             .disabled(isRegenerating)
                         }
@@ -106,13 +101,7 @@ struct MatchDetailView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
-                            .background(
-                                LinearGradient(
-                                    colors: [.pink, .purple],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
+                            .background(Brand.buttonGradient)
                             .clipShape(Capsule())
                         }
                         .disabled(isRegenerating)
@@ -161,7 +150,7 @@ struct MatchDetailView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Interests")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Brand.textSecondary)
                                 .padding(.horizontal, 24)
                             
                             FlowLayout(spacing: 8) {
@@ -170,8 +159,8 @@ struct MatchDetailView: View {
                                         .font(.caption)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
-                                        .background(Color.pink.opacity(0.1))
-                                        .foregroundStyle(.pink)
+                                        .background(Brand.accentLight)
+                                        .foregroundStyle(Brand.accent)
                                         .clipShape(Capsule())
                                 }
                             }
@@ -183,20 +172,21 @@ struct MatchDetailView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
                                 Image(systemName: "lightbulb.fill")
-                                    .foregroundStyle(.yellow)
+                                    .foregroundStyle(Brand.warning)
                                 Text("Conversation Hooks")
                                     .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Brand.textSecondary)
                             }
                             .padding(.horizontal, 24)
                             
                             ForEach(match.hooks, id: \.self) { hook in
                                 HStack {
                                     Image(systemName: "sparkle")
-                                        .foregroundStyle(.pink)
+                                        .foregroundStyle(Brand.accent)
                                         .font(.caption)
                                     Text(hook)
                                         .font(.subheadline)
+                                        .foregroundStyle(Brand.textPrimary)
                                 }
                                 .padding(.horizontal, 24)
                             }

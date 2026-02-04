@@ -2,6 +2,18 @@
  * Shared types for the OnePercent backend
  */
 
+export interface PromptAnswer {
+  prompt: string;
+  answer: string;
+}
+
+export interface PersonalityRead {
+  archetype: string;
+  vibe: string;
+  respondsTo: string[];
+  avoidWith: string[];
+}
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -13,6 +25,9 @@ export interface UserProfile {
   datingIntent?: string;
   emojiStyle: 'none' | 'light' | 'heavy';
   profileContext?: string;  // OCR'd user's own dating profile
+  activities?: string[];  // What they like to do
+  nationalities?: string[];  // User's cultural background (Italian, Mexican, etc.)
+  firstDateGoal?: 'coffee' | 'drinks' | 'dinner' | 'activity' | 'cooking' | 'walk_park';
 }
 
 export interface MatchProfile {
@@ -27,11 +42,7 @@ export interface MatchProfile {
   location?: string;
   hooks: string[];
   rawOcrText?: string;
-}
-
-export interface PromptAnswer {
-  prompt: string;
-  answer: string;
+  personalityRead?: PersonalityRead;
 }
 
 export interface ParsedProfile {
@@ -46,6 +57,18 @@ export interface ParsedProfile {
   location: string | null;
   hooks: string[];
   confidence: number;
+  personalityRead?: PersonalityRead;
+}
+
+export interface MessageReasoning {
+  whoAmI?: string;
+  whoIsShe?: string;
+  hookUsed?: string;
+  ctaDirection?: string;
+  whyThisApproach?: string;
+  conversationState?: string;
+  approach?: string;
+  nextMove?: string;
 }
 
 export interface GeneratedMessage {

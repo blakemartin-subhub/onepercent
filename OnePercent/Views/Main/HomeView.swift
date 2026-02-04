@@ -31,7 +31,7 @@ struct HomeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Text("OnePercent")
+                Text("One Percent")
                     .font(.headline)
                     .foregroundStyle(Brand.textPrimary)
             }
@@ -188,25 +188,26 @@ struct MatchCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 14) {
-                // Avatar
-                Circle()
-                    .fill(Brand.gradient)
-                    .frame(width: 52, height: 52)
-                    .overlay(
-                        Text(match.name?.prefix(1).uppercased() ?? "?")
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.white)
-                    )
+                // Avatar (placeholder - could be photo in future)
+                ZStack {
+                    RoundedRectangle(cornerRadius: Brand.radiusMedium)
+                        .fill(Brand.gradient)
+                        .frame(width: 60, height: 60)
+                    
+                    Text(match.name?.prefix(1).uppercased() ?? "?")
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                }
                 
                 // Info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Text(match.name ?? "Unknown")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.headline)
                             .foregroundStyle(Brand.textPrimary)
                         
                         if let age = match.age {
-                            Text("\(age)")
+                            Text("· \(age)")
                                 .font(.subheadline)
                                 .foregroundStyle(Brand.textSecondary)
                         }
@@ -214,34 +215,60 @@ struct MatchCard: View {
                     
                     // Interests preview
                     if !match.interests.isEmpty {
-                        Text(match.interests.prefix(2).joined(separator: " · "))
+                        Text(match.interests.prefix(3).joined(separator: " · "))
                             .font(.caption)
                             .foregroundStyle(Brand.textSecondary)
                             .lineLimit(1)
                     }
+                    
+                    // Last interaction date
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                        Text(match.updatedAt.timeAgoDisplay())
+                            .font(.caption)
+                    }
+                    .foregroundStyle(Brand.textMuted)
                 }
                 
                 Spacer()
                 
-                // Ready indicator
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Brand.success)
-                        .frame(width: 8, height: 8)
-                    
-                    Text("Ready")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Brand.success)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(Brand.success.opacity(0.1))
-                .clipShape(Capsule())
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Brand.textMuted)
             }
             .padding(16)
             .background(Brand.card)
             .clipShape(RoundedRectangle(cornerRadius: Brand.radiusLarge))
-            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+        }
+    }
+}
+
+// MARK: - Date Extension
+extension Date {
+    func timeAgoDisplay() -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.minute, .hour, .day], from: self, to: now)
+        
+        if let days = components.day, days > 0 {
+            if days == 1 {
+                return "Yesterday"
+            } else if days < 7 {
+                return "\(days) days ago"
+            } else {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MMM d"
+                return formatter.string(from: self)
+            }
+        } else if let hours = components.hour, hours > 0 {
+            return "\(hours)h ago"
+        } else if let minutes = components.minute, minutes > 0 {
+            return "\(minutes)m ago"
+        } else {
+            return "Just now"
         }
     }
 }

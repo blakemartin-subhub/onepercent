@@ -2,11 +2,6 @@ import SwiftUI
 
 struct KeyboardSetupView: View {
     let onContinue: () -> Void
-    @State private var currentStep = 0
-    @State private var animatingStep = 0
-    @State private var hasCheckedKeyboard = false
-    @State private var showingFullAccessWarning = false
-    @State private var isAnimatingSequence = false
     
     private let steps = [
         SetupStep(
@@ -17,20 +12,20 @@ struct KeyboardSetupView: View {
         ),
         SetupStep(
             number: 2,
-            title: "Add OnePercent Keyboard",
-            description: "Tap 'Add New Keyboard...' → select 'OnePercent'",
+            title: "Add One Percent Keyboard",
+            description: "Tap 'Add New Keyboard...' → select 'One Percent'",
             icon: "plus.circle"
         ),
         SetupStep(
             number: 3,
             title: "Allow Full Access",
-            description: "Tap 'OnePercent' → toggle ON 'Allow Full Access'",
+            description: "Tap 'One Percent' → toggle ON 'Allow Full Access'",
             icon: "lock.open"
         ),
         SetupStep(
             number: 4,
             title: "You're Ready!",
-            description: "While typing, tap 🌐 to switch to OnePercent",
+            description: "While typing, tap 🌐 to switch to One Percent",
             icon: "checkmark.circle"
         )
     ]
@@ -53,7 +48,7 @@ struct KeyboardSetupView: View {
                     .font(.title2.weight(.bold))
                     .foregroundStyle(Brand.textPrimary)
                 
-                Text("The keyboard is where all the magic happens")
+                Text("Enable the keyboard to generate messages\nwhile chatting in any app")
                     .font(.subheadline)
                     .foregroundStyle(Brand.textSecondary)
                     .multilineTextAlignment(.center)
@@ -61,22 +56,15 @@ struct KeyboardSetupView: View {
             .padding(.top, 40)
             .padding(.bottom, 32)
             
-            // Steps
+            // Steps (informational - shows all steps to follow)
             VStack(spacing: 8) {
                 ForEach(steps.indices, id: \.self) { index in
                     SetupStepRow(
                         step: steps[index],
-                        isActive: index == currentStep || index == animatingStep,
-                        isCompleted: index < animatingStep,
-                        isRequired: index == 2 && index >= animatingStep
+                        isActive: true,
+                        isCompleted: false,
+                        isRequired: index == 2 // Full Access step is required
                     )
-                    .onTapGesture {
-                        if !isAnimatingSequence {
-                            withAnimation {
-                                currentStep = index
-                            }
-                        }
-                    }
                 }
             }
             .padding(.horizontal, 20)
@@ -115,9 +103,9 @@ struct KeyboardSetupView: View {
             
             Spacer()
             
-            // Buttons
+            // Single button - opens settings AND advances to next page
             VStack(spacing: 12) {
-                Button(action: openKeyboardSettings) {
+                Button(action: openSettingsAndContinue) {
                     HStack {
                         Image(systemName: "gear")
                         Text("Open Settings")
@@ -125,92 +113,32 @@ struct KeyboardSetupView: View {
                 }
                 .buttonStyle(.brandPrimary)
                 
-                Text("General → Keyboard → Keyboards → Add New Keyboard")
+                Text("Settings → General → Keyboard → Keyboards")
                     .font(.caption)
                     .foregroundStyle(Brand.textMuted)
                 
-                Button(action: verifyAndContinue) {
-                    HStack {
-                        Text("I've Enabled Full Access")
-                        Image(systemName: "checkmark.circle")
-                    }
-                }
-                .buttonStyle(.brandSecondary)
+                Text("Add 'One Percent' and enable Full Access")
+                    .font(.caption)
+                    .foregroundStyle(Brand.textMuted)
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
         }
         .background(Brand.background)
-        .alert("Full Access Required", isPresented: $showingFullAccessWarning) {
-            Button("Open Settings") {
-                openKeyboardSettings()
-            }
-            Button("Continue Anyway", role: .destructive) {
-                onContinue()
-            }
-        } message: {
-            Text("Without Full Access enabled, the keyboard won't be able to access your photos or generate messages.")
-        }
     }
     
-    private func openKeyboardSettings() {
-        isAnimatingSequence = true
+    private func openSettingsAndContinue() {
+        // First, advance to the next onboarding step
+        onContinue()
         
-        // Animate step 2
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                animatingStep = 2
-            }
-        }
-        
-        // Animate step 3
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                animatingStep = 3
-            }
-        }
-        
-        // Open settings and fill step 4
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-            actuallyOpenSettings()
-            
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    animatingStep = 4
-                }
-                isAnimatingSequence = false
-            }
-        }
-    }
-    
-    private func actuallyOpenSettings() {
-        let keyboardURLs = [
-            "prefs:root=General&path=Keyboard/KEYBOARDS",
-            "App-prefs:root=General&path=Keyboard/KEYBOARDS",
-            "App-prefs:General&path=Keyboard/KEYBOARDS"
-        ]
-        
-        for urlString in keyboardURLs {
-            if let url = URL(string: urlString),
-               UIApplication.shared.canOpenURL(url) {
+        // Then open Settings (app's settings page)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
-                return
             }
-        }
-        
-        if let url = URL(string: UIApplication.openSettingsURLString) {
-            UIApplication.shared.open(url)
         }
     }
     
-    private func verifyAndContinue() {
-        if !hasCheckedKeyboard {
-            hasCheckedKeyboard = true
-            showingFullAccessWarning = true
-        } else {
-            onContinue()
-        }
-    }
 }
 
 struct RequirementRow: View {

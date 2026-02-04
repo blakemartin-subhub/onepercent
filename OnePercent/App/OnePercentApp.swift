@@ -3,7 +3,28 @@ import SharedKit
 
 @main
 struct OnePercentApp: App {
-    @StateObject private var appState = AppState()
+    @StateObject private var appState: AppState
+    
+    init() {
+        // DEBUG: Set to true to clear all data on app launch for testing
+        let shouldResetOnLaunch = false
+        
+        #if DEBUG
+        if shouldResetOnLaunch {
+            print("[OnePercent] DEBUG: Clearing all data on launch...")
+            MatchStore.shared.deleteAllData()
+            
+            // Also clear the App Group UserDefaults
+            if let defaults = UserDefaults(suiteName: AppGroupConstants.groupIdentifier) {
+                defaults.removePersistentDomain(forName: AppGroupConstants.groupIdentifier)
+                defaults.synchronize()
+            }
+            print("[OnePercent] DEBUG: All data cleared!")
+        }
+        #endif
+        
+        _appState = StateObject(wrappedValue: AppState())
+    }
     
     var body: some Scene {
         WindowGroup {
