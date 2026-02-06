@@ -173,7 +173,7 @@ struct KeyboardMainView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 28)
                 .padding(.vertical, 14)
-                .background(KeyboardBrand.buttonGradient)
+                .background(KeyboardBrand.accent)
                 .clipShape(Capsule())
             }
             
@@ -209,7 +209,7 @@ struct KeyboardMainView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(KeyboardBrand.buttonGradient)
+                    .background(KeyboardBrand.accent)
                     .clipShape(Capsule())
                 }
             }
@@ -821,7 +821,7 @@ struct MatchRow: View {
         HStack(spacing: 12) {
             // Avatar
             Circle()
-                .fill(KeyboardBrand.gradient)
+                .fill(KeyboardBrand.accent)
                 .frame(width: 40, height: 40)
                 .overlay(
                     Text(match.name?.prefix(1).uppercased() ?? "?")

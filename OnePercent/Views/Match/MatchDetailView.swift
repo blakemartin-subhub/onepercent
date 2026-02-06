@@ -19,7 +19,7 @@ struct MatchDetailView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Brand.gradient)
+                            .fill(Brand.accent)
                             .frame(width: 100, height: 100)
                         
                         Text(match.displayName.prefix(1).uppercased())
@@ -101,7 +101,7 @@ struct MatchDetailView: View {
                             .foregroundStyle(.white)
                             .padding(.horizontal, 24)
                             .padding(.vertical, 12)
-                            .background(Brand.buttonGradient)
+                            .background(Brand.accent)
                             .clipShape(Capsule())
                         }
                         .disabled(isRegenerating)

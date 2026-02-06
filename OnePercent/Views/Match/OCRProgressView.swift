@@ -27,7 +27,7 @@ struct OCRProgressView: View {
                 Circle()
                     .trim(from: 0, to: animatedProgress)
                     .stroke(
-                        Brand.gradient,
+                        Brand.accent,
                         style: StrokeStyle(lineWidth: 8, lineCap: .round)
                     )
                     .frame(width: 120, height: 120)
@@ -59,7 +59,7 @@ struct OCRProgressView: View {
                             .frame(height: 8)
                         
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(Brand.buttonGradient)
+                            .fill(Brand.accent)
                             .frame(width: geometry.size.width * animatedProgress, height: 8)
                     }
                 }
@@ -74,7 +74,7 @@ struct OCRProgressView: View {
             Spacer()
             Spacer()
         }
-        .background(Brand.background)
+        .background(Brand.background.ignoresSafeArea())
         .onChange(of: progress) { _, newValue in
             withAnimation(.easeInOut(duration: 0.3)) {
                 animatedProgress = newValue

@@ -16,28 +16,19 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="message.fill" catalog="system" translatesAutoresizingMaskIntoConstraints="NO" id="abc-12-xyz">
-                                <rect key="frame" x="156.66666666666666" y="386" width="80" height="80"/>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Logo" translatesAutoresizingMaskIntoConstraints="NO" id="abc-12-xyz">
+                                <rect key="frame" x="146.5" y="376" width="100" height="100"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="80" id="w1"/>
-                                    <constraint firstAttribute="height" constant="80" id="h1"/>
+                                    <constraint firstAttribute="width" constant="100" id="w1"/>
+                                    <constraint firstAttribute="height" constant="100" id="h1"/>
                                 </constraints>
-                                <color key="tintColor" red="0.91764705882352937" green="0.26274509803921569" blue="0.47843137254901963" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="One Percent" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="lbl-title">
-                                <rect key="frame" x="96.666666666666671" y="486" width="200" height="29"/>
-                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
-                                <color key="textColor" systemColor="labelColor"/>
-                                <nil key="highlightedColor"/>
-                            </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="abc-12-xyz" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="c1"/>
                             <constraint firstItem="abc-12-xyz" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="c2"/>
-                            <constraint firstItem="lbl-title" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="c3"/>
-                            <constraint firstItem="lbl-title" firstAttribute="top" secondItem="abc-12-xyz" secondAttribute="bottom" constant="20" id="c4"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -47,9 +38,7 @@
         </scene>
     </scenes>
     <resources>
-        <systemColor name="labelColor">
-            <color white="0.0" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <image name="Logo" width="1024" height="1024"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

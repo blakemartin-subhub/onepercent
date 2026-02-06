@@ -104,7 +104,7 @@ public final class KeychainHelper: @unchecked Sendable {
             return nil
         }
         let cleanTeamID = teamID.trimmingCharacters(in: CharacterSet(charactersIn: "."))
-        return "\(cleanTeamID).com.blakemartin.onepercent.shared"
+        return "\(cleanTeamID).com.dave.onepercent.shared"
     }
     
     /// Try to get team ID from the embedded provisioning profile

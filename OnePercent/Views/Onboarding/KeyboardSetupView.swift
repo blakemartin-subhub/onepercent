@@ -1,7 +1,14 @@
 import SwiftUI
 
 struct KeyboardSetupView: View {
+    let step: Int
     let onContinue: () -> Void
+    
+    // Entrance animation states
+    @State private var headerVisible = false
+    @State private var stepsVisible = false
+    @State private var infoVisible = false
+    @State private var buttonVisible = false
     
     private let steps = [
         SetupStep(
@@ -55,6 +62,8 @@ struct KeyboardSetupView: View {
             }
             .padding(.top, 40)
             .padding(.bottom, 32)
+            .opacity(headerVisible ? 1 : 0)
+            .offset(y: headerVisible ? 0 : 30)
             
             // Steps (informational - shows all steps to follow)
             VStack(spacing: 8) {
@@ -68,6 +77,8 @@ struct KeyboardSetupView: View {
                 }
             }
             .padding(.horizontal, 20)
+            .opacity(stepsVisible ? 1 : 0)
+            .offset(y: stepsVisible ? 0 : 30)
             
             Spacer()
             
@@ -100,6 +111,8 @@ struct KeyboardSetupView: View {
             .background(Brand.backgroundSecondary)
             .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
             .padding(.horizontal, 20)
+            .opacity(infoVisible ? 1 : 0)
+            .offset(y: infoVisible ? 0 : 30)
             
             Spacer()
             
@@ -123,10 +136,57 @@ struct KeyboardSetupView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
+            .opacity(buttonVisible ? 1 : 0)
+            .offset(y: buttonVisible ? 0 : 30)
         }
-        .background(Brand.background)
+        .background(Brand.background.ignoresSafeArea())
+        .onAppear {
+            // Only animate on appear if this is already the active step (e.g., in preview)
+            if step == 3 {
+                startEntranceAnimations()
+            }
+        }
+        .onChange(of: step) { _, newValue in
+            if newValue == 3 {
+                var t = Transaction()
+                t.disablesAnimations = true
+                withTransaction(t) {
+                    headerVisible = false
+                    stepsVisible = false
+                    infoVisible = false
+                    buttonVisible = false
+                }
+                startEntranceAnimations()
+            }
+        }
     }
     
+    private func startEntranceAnimations() {
+        // Separate asyncAfter calls ensure each animation runs in its own execution context,
+        // preventing the TabView's .animation(.easeInOut) from interfering with stagger
+        let base: TimeInterval = 0.1
+        DispatchQueue.main.asyncAfter(deadline: .now() + base) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75, blendDuration: 0)) {
+                headerVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.15) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75, blendDuration: 0)) {
+                stepsVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.3) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75, blendDuration: 0)) {
+                infoVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.45) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
+                buttonVisible = true
+            }
+        }
+    }
+
     private func openSettingsAndContinue() {
         // First, advance to the next onboarding step
         onContinue()
@@ -229,5 +289,5 @@ struct SetupStepRow: View {
 }
 
 #Preview {
-    KeyboardSetupView(onContinue: {})
+    KeyboardSetupView(step: 3, onContinue: {})
 }

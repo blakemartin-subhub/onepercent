@@ -6,10 +6,10 @@ struct OnePercentApp: App {
     @StateObject private var appState: AppState
     
     init() {
+        #if DEBUG
         // DEBUG: Set to true to clear all data on app launch for testing
         let shouldResetOnLaunch = false
         
-        #if DEBUG
         if shouldResetOnLaunch {
             print("[OnePercent] DEBUG: Clearing all data on launch...")
             MatchStore.shared.deleteAllData()

@@ -16,7 +16,7 @@ struct MessagesResultView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .fill(Brand.gradient)
+                            .fill(Brand.accent)
                             .frame(width: 80, height: 80)
                         
                         Text(match.displayName.prefix(1).uppercased())
@@ -95,7 +95,7 @@ struct MessagesResultView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Brand.buttonGradient)
+                        .background(Brand.accent)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                     }
                     

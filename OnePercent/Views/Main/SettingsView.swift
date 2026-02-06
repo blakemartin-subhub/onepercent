@@ -110,7 +110,7 @@ struct SettingsView: View {
             .padding(.horizontal, 20)
             .padding(.top, 20)
         }
-        .background(Brand.background)
+        .background(Brand.background.ignoresSafeArea())
         .navigationTitle("Settings")
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showEditProfile) {
@@ -162,7 +162,7 @@ struct ProfileCard: View {
                 // Avatar
                 ZStack {
                     Circle()
-                        .fill(Brand.gradient)
+                        .fill(Brand.accent)
                         .frame(width: 64, height: 64)
                     
                     Text(profile.displayName.prefix(1).uppercased())
@@ -373,7 +373,7 @@ struct PrivacyInfoSheet: View {
                     .padding(.bottom, 32)
                 }
             }
-            .background(Brand.background)
+            .background(Brand.background.ignoresSafeArea())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -447,7 +447,7 @@ struct EditProfileView: View {
                 // Avatar
                 ZStack {
                     Circle()
-                        .fill(Brand.gradient)
+                        .fill(Brand.accent)
                         .frame(width: 80, height: 80)
                     
                     Text(name.prefix(1).uppercased())
@@ -553,7 +553,7 @@ struct EditProfileView: View {
                 Spacer(minLength: 32)
             }
         }
-        .background(Brand.background)
+        .background(Brand.background.ignoresSafeArea())
         .navigationTitle("Edit Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -604,7 +604,7 @@ struct ToneChip: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Color.white))
+                        .fill(isSelected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.white))
                         .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
                 )
         }

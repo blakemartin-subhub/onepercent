@@ -368,7 +368,7 @@ struct ImageSelectionView: View {
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Brand.buttonGradient)
+                    .background(Brand.accent)
                     .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                 }
                 .onChange(of: selectedVideoItem) { _, newItem in
@@ -408,7 +408,7 @@ struct ImageSelectionView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(Brand.buttonGradient)
+                        .background(Brand.accent)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                     }
                 }

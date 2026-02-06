@@ -4,6 +4,7 @@ import PhotosUI
 
 struct ProfileImportView: View {
     @Binding var profileContext: String?
+    let step: Int
     let onContinue: () -> Void
     
     @State private var selectedItems: [PhotosPickerItem] = []
@@ -11,11 +12,22 @@ struct ProfileImportView: View {
     @State private var processingState: ImportState = .idle
     @State private var extractedText = ""
     
-    enum ImportState {
+    // Entrance animation states
+    @State private var headerVisible = false
+    @State private var optionsVisible = false
+    @State private var benefitsVisible = false
+    @State private var buttonVisible = false
+    
+    enum ImportState: Equatable {
         case idle
         case processing(progress: Double)
         case success
         case error(String)
+    }
+    
+    private var isSuccess: Bool {
+        if case .success = processingState { return true }
+        return false
     }
     
     var body: some View {
@@ -43,6 +55,9 @@ struct ProfileImportView: View {
                         .multilineTextAlignment(.center)
                 }
                 .padding(.top, 32)
+                .opacity(headerVisible ? 1 : 0)
+                .offset(y: headerVisible ? 0 : 30)
+                .blur(radius: headerVisible ? 0 : 8)
                 
                 // Upload options
                 VStack(spacing: 12) {
@@ -124,6 +139,9 @@ struct ProfileImportView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+                .opacity(optionsVisible ? 1 : 0)
+                .offset(y: optionsVisible ? 0 : 30)
+                .blur(radius: optionsVisible ? 0 : 6)
                 
                 // Processing state
                 Group {
@@ -135,6 +153,7 @@ struct ProfileImportView: View {
                         VStack(spacing: 12) {
                             ProgressView(value: progress)
                                 .tint(Brand.accent)
+                                .animation(.easeInOut(duration: 0.35), value: progress)
                             
                             Text("Analyzing your profile...")
                                 .font(.caption)
@@ -144,6 +163,7 @@ struct ProfileImportView: View {
                         .background(Brand.backgroundSecondary)
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                         .padding(.horizontal, 20)
+                        .transition(.opacity.combined(with: .offset(y: 12)))
                         
                     case .success:
                         HStack(spacing: 12) {
@@ -167,6 +187,7 @@ struct ProfileImportView: View {
                         .background(Brand.success.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                         .padding(.horizontal, 20)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         
                     case .error(let message):
                         VStack(spacing: 8) {
@@ -179,7 +200,9 @@ struct ProfileImportView: View {
                             }
                             
                             Button("Try Again") {
-                                processingState = .idle
+                                withAnimation(.smooth(duration: 0.45)) {
+                                    processingState = .idle
+                                }
                             }
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Brand.accent)
@@ -188,8 +211,10 @@ struct ProfileImportView: View {
                         .background(Brand.warning.opacity(0.1))
                         .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                         .padding(.horizontal, 20)
+                        .transition(.opacity.combined(with: .offset(y: 12)))
                     }
                 }
+                .animation(.smooth(duration: 0.4), value: processingState)
                 
                 // Benefits
                 VStack(alignment: .leading, spacing: 12) {
@@ -208,6 +233,9 @@ struct ProfileImportView: View {
                 .background(Brand.backgroundSecondary)
                 .clipShape(RoundedRectangle(cornerRadius: Brand.radiusMedium))
                 .padding(.horizontal, 20)
+                .opacity(benefitsVisible ? 1 : 0)
+                .offset(y: benefitsVisible ? 0 : 30)
+                .blur(radius: benefitsVisible ? 0 : 6)
                 
                 Spacer().frame(height: 20)
                 
@@ -220,29 +248,79 @@ struct ProfileImportView: View {
                         onContinue()
                     }) {
                         HStack {
-                            if case .success = processingState {
+                            if isSuccess {
                                 Text("Continue")
                                 Image(systemName: "arrow.right")
                             } else {
                                 Text("Skip for Now")
                             }
                         }
+                        .contentTransition(.interpolate)
                     }
                     .buttonStyle(.brandPrimary)
+                    .animation(.smooth(duration: 0.35), value: isSuccess)
                     
-                    if case .success = processingState {
-                        // Already shows continue
-                    } else {
+                    if !isSuccess {
                         Text("You can import your profile later in settings")
                             .font(.caption)
                             .foregroundStyle(Brand.textMuted)
+                            .transition(.opacity.combined(with: .offset(y: 6)))
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 40)
+                .opacity(buttonVisible ? 1 : 0)
+                .offset(y: buttonVisible ? 0 : 30)
+                .blur(radius: buttonVisible ? 0 : 6)
+                .animation(.smooth(duration: 0.35), value: isSuccess)
             }
         }
-        .background(Brand.background)
+        .background(Brand.background.ignoresSafeArea())
+        .onAppear {
+            // Store extracted text but DON'T set processingState yet — let it animate in
+            if profileContext != nil {
+                extractedText = profileContext ?? ""
+            }
+            if step == 1 {
+                startEntranceAnimations()
+                // Stagger success banner into the entrance sequence
+                if profileContext != nil {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.smooth(duration: 0.45)) {
+                            processingState = .success
+                        }
+                    }
+                }
+            }
+        }
+        .onChange(of: step) { _, newValue in
+            if newValue == 1 {
+                let shouldRestoreSuccess = processingState == .success || profileContext != nil
+                var t = Transaction()
+                t.disablesAnimations = true
+                withTransaction(t) {
+                    headerVisible = false
+                    optionsVisible = false
+                    benefitsVisible = false
+                    buttonVisible = false
+                    if shouldRestoreSuccess {
+                        processingState = .idle
+                    }
+                }
+                if profileContext != nil {
+                    extractedText = profileContext ?? ""
+                }
+                startEntranceAnimations()
+                // Re-animate success banner as part of the entrance stagger
+                if shouldRestoreSuccess {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        withAnimation(.smooth(duration: 0.45)) {
+                            processingState = .success
+                        }
+                    }
+                }
+            }
+        }
         .onChange(of: selectedVideoItem) { _, newItem in
             if let item = newItem {
                 processVideo(item)
@@ -255,8 +333,36 @@ struct ProfileImportView: View {
         }
     }
     
+    private func startEntranceAnimations() {
+        // Separate asyncAfter calls ensure each animation runs in its own execution context,
+        // preventing the TabView's .animation(.easeInOut) from interfering with stagger
+        let base: TimeInterval = 0.1
+        DispatchQueue.main.asyncAfter(deadline: .now() + base) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75, blendDuration: 0)) {
+                headerVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.15) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.75, blendDuration: 0)) {
+                optionsVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.3) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.75, blendDuration: 0)) {
+                benefitsVisible = true
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + base + 0.45) {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0)) {
+                buttonVisible = true
+            }
+        }
+    }
+    
     private func processVideo(_ item: PhotosPickerItem) {
-        processingState = .processing(progress: 0)
+        withAnimation(.smooth(duration: 0.45)) {
+            processingState = .processing(progress: 0)
+        }
         
         // Auto-advance after 2.5 seconds while OCR continues in background
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -278,7 +384,9 @@ struct ProfileImportView: View {
                     Task { @MainActor in
                         // Only update progress if still on this view
                         if case .processing = processingState {
-                            processingState = .processing(progress: progress)
+                            withAnimation(.smooth(duration: 0.3)) {
+                                processingState = .processing(progress: progress)
+                            }
                         }
                     }
                 }
@@ -286,13 +394,17 @@ struct ProfileImportView: View {
                 await MainActor.run {
                     extractedText = text
                     profileContext = text  // Updates binding even if user moved to next step
-                    processingState = .success
+                    withAnimation(.smooth(duration: 0.45)) {
+                        processingState = .success
+                    }
                     selectedVideoItem = nil
                 }
                 
             } catch {
                 await MainActor.run {
-                    processingState = .error("Unable to process video")
+                    withAnimation(.smooth(duration: 0.45)) {
+                        processingState = .error("Unable to process video")
+                    }
                     selectedVideoItem = nil
                 }
             }
@@ -300,7 +412,9 @@ struct ProfileImportView: View {
     }
     
     private func processScreenshots(_ items: [PhotosPickerItem]) {
-        processingState = .processing(progress: 0)
+        withAnimation(.smooth(duration: 0.45)) {
+            processingState = .processing(progress: 0)
+        }
         
         // Auto-advance after 2.5 seconds while OCR continues in background
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
@@ -328,7 +442,9 @@ struct ProfileImportView: View {
                     await MainActor.run {
                         // Only update progress if still on this view
                         if case .processing = processingState {
-                            processingState = .processing(progress: Double(index + 1) / Double(items.count))
+                            withAnimation(.smooth(duration: 0.3)) {
+                                processingState = .processing(progress: Double(index + 1) / Double(items.count))
+                            }
                         }
                     }
                 }
@@ -336,13 +452,17 @@ struct ProfileImportView: View {
                 await MainActor.run {
                     extractedText = allText
                     profileContext = allText  // Updates binding even if user moved to next step
-                    processingState = .success
+                    withAnimation(.smooth(duration: 0.45)) {
+                        processingState = .success
+                    }
                     selectedItems = []
                 }
                 
             } catch {
                 await MainActor.run {
-                    processingState = .error("Unable to process screenshots")
+                    withAnimation(.smooth(duration: 0.45)) {
+                        processingState = .error("Unable to process screenshots")
+                    }
                     selectedItems = []
                 }
             }
@@ -388,6 +508,7 @@ enum ImportError: Error {
     case loadFailed
 }
 
+
 #Preview {
-    ProfileImportView(profileContext: .constant(nil), onContinue: {})
+    ProfileImportView(profileContext: .constant(nil), step: 1, onContinue: {})
 }

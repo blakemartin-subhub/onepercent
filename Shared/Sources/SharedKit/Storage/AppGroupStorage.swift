@@ -2,7 +2,7 @@ import Foundation
 
 /// Constants for App Group storage
 public enum AppGroupConstants {
-    public static let groupIdentifier = "group.com.blakemartin.onepercent.app"
+    public static let groupIdentifier = "group.com.dave.onepercent.app"
     public static let userProfileKey = "userProfile"
     public static let matchIndexKey = "matchIndex"
     public static let lastSelectedMatchKey = "lastSelectedMatchId"

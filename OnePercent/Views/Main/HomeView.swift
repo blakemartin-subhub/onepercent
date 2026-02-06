@@ -66,7 +66,7 @@ struct HomeView: View {
             
             // Profile avatar
             Circle()
-                .fill(Brand.gradient)
+                .fill(Brand.accent)
                 .frame(width: 44, height: 44)
                 .overlay(
                     Text(appState.userProfile?.displayName.prefix(1).uppercased() ?? "?")
@@ -85,7 +85,7 @@ struct HomeView: View {
                 HStack(spacing: 16) {
                     ZStack {
                         Circle()
-                            .fill(Brand.gradient)
+                            .fill(Brand.accent)
                             .frame(width: 48, height: 48)
                         
                         Image(systemName: "plus")
@@ -191,7 +191,7 @@ struct MatchCard: View {
                 // Avatar (placeholder - could be photo in future)
                 ZStack {
                     RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                        .fill(Brand.gradient)
+                        .fill(Brand.accent)
                         .frame(width: 60, height: 60)
                     
                     Text(match.name?.prefix(1).uppercased() ?? "?")
