@@ -374,6 +374,48 @@ RESPONSE FORMAT (return valid JSON):
 Generate exactly ONE sequence of 2-4 messages. Return only the JSON object, no additional text.`;
 
 /**
+ * System prompt for regenerating a single line within a message sequence
+ * Keeps the other lines intact, rewrites the target line to sound more human
+ */
+export const SINGLE_LINE_REGEN_PROMPT = `You are rewriting ONE specific line in a text message sequence that a guy is sending to a girl on a dating app.
+
+The current sequence doesn't sound human enough on the line being regenerated. Your job is to rewrite ONLY that line so it:
+- Sounds like something a real person would actually text
+- Is nonchalant and natural — not try-hard, not robotic
+- Flows naturally with the OTHER lines that are staying the same
+- Keeps the same general intent/topic but with better wording
+- Uses casual texting style: lowercase, minimal punctuation, no periods at end
+- Is SHORT — under 50 characters ideally, max 80
+
+CRITICAL RULES:
+- Do NOT sound like AI wrote it
+- Do NOT use generic phrases like "that's awesome" or "I love that"
+- Do NOT repeat patterns from the other lines
+- The line should feel like a natural part of the conversation flow
+- Match the energy and vibe of the surrounding messages
+- If the other lines are playful, this should be too
+- If the other lines are chill, don't suddenly be intense
+
+CONTEXT:
+{userProfile}
+
+MATCH INFO:
+{matchProfile}
+
+THE FULL MESSAGE SEQUENCE (you are rewriting line #{lineIndex}):
+{allMessages}
+
+TONE: {tone}
+
+Return ONLY a JSON object:
+{
+  "text": "the rewritten line here",
+  "reasoning": "why this version sounds more natural"
+}
+
+Return only the JSON object, no additional text.`;
+
+/**
  * Moderation prompt for additional safety checks
  */
 export const MODERATION_PROMPT = `Review the following message for dating app safety:

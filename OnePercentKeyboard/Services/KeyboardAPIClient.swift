@@ -62,6 +62,26 @@ actor KeyboardAPIClient {
         return (response.messages, response.reasoning)
     }
     
+    /// Regenerate a single line in a message sequence
+    func regenerateLine(
+        userProfile: UserProfile,
+        matchProfile: MatchProfile,
+        allMessages: [String],
+        lineIndex: Int,
+        tone: String? = nil
+    ) async throws -> (text: String, reasoning: String?) {
+        let request = KeyboardRegenLineRequest(
+            userProfile: userProfile,
+            matchProfile: matchProfile,
+            allMessages: allMessages,
+            lineIndex: lineIndex,
+            tone: tone
+        )
+        
+        let response: KeyboardRegenLineResponse = try await post("/v1/message/regen-line", body: request)
+        return (response.text, response.reasoning)
+    }
+    
     private func post<T: Encodable, R: Decodable>(_ path: String, body: T) async throws -> R {
         let url = URL(string: baseURL + path)!
         var request = URLRequest(url: url)
@@ -169,6 +189,19 @@ struct KeyboardGenerateMessagesResponse: Decodable {
     private enum CodingKeys: String, CodingKey {
         case messages, reasoning
     }
+}
+
+struct KeyboardRegenLineRequest: Encodable {
+    let userProfile: UserProfile
+    let matchProfile: MatchProfile
+    let allMessages: [String]
+    let lineIndex: Int
+    let tone: String?
+}
+
+struct KeyboardRegenLineResponse: Decodable {
+    let text: String
+    let reasoning: String?
 }
 
 struct KeyboardAPIErrorResponse: Decodable {

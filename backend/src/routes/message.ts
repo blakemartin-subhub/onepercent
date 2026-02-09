@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
-import { generateMessages, moderateContent } from '../services/openai';
+import { generateMessages, regenerateSingleLine, moderateContent } from '../services/openai';
 import type { MessageReasoning } from '../types';
 
 export const messageRouter = Router();
@@ -144,6 +144,70 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
     return res.json({ messages: safeMessages, reasoning });
   } catch (error) {
     console.error('[message/generate] Error:', error);
+    next(error);
+  }
+});
+
+// Request validation for single-line regen
+const regenLineSchema = z.object({
+  userProfile: userProfileSchema,
+  matchProfile: matchProfileSchema,
+  allMessages: z.array(z.string()).min(1),
+  lineIndex: z.number().min(0),
+  tone: z.string().optional(),
+});
+
+/**
+ * POST /v1/message/regen-line
+ * Regenerate a single line in a message sequence
+ */
+messageRouter.post('/regen-line', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const validation = regenLineSchema.safeParse(req.body);
+    if (!validation.success) {
+      console.error(`[message/regen-line] Validation failed:`, validation.error.errors);
+      return res.status(400).json({
+        error: 'Invalid request',
+        details: validation.error.errors,
+      });
+    }
+
+    const { userProfile, matchProfile, allMessages, lineIndex, tone } = validation.data;
+    
+    if (lineIndex >= allMessages.length) {
+      return res.status(400).json({ error: 'lineIndex out of range' });
+    }
+
+    console.log(`[message/regen-line] Regenerating line ${lineIndex + 1} of ${allMessages.length}`);
+
+    const result = await regenerateSingleLine(
+      userProfile,
+      matchProfile,
+      allMessages,
+      lineIndex,
+      { tone }
+    );
+
+    // Moderate the regenerated line
+    try {
+      const moderation = await moderateContent(result.text);
+      if (moderation.flagged) {
+        const severeFlags = ['sexual', 'hate', 'violence', 'self-harm'];
+        const hasSevere = moderation.categories.some(flag =>
+          severeFlags.some(severe => flag.toLowerCase().includes(severe))
+        );
+        if (hasSevere) {
+          return res.status(500).json({ error: 'Generated line was flagged. Try again.' });
+        }
+      }
+    } catch (modError) {
+      console.error('[message/regen-line] Moderation error:', modError);
+    }
+
+    console.log(`[message/regen-line] Regenerated: "${result.text}"`);
+    return res.json({ text: result.text, reasoning: result.reasoning });
+  } catch (error) {
+    console.error('[message/regen-line] Error:', error);
     next(error);
   }
 });

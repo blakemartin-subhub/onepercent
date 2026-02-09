@@ -28,6 +28,7 @@ struct KeyboardMainView: View {
         case parsingProfile
         case generatingMessages(name: String, step: DraftingStep)
         case ready(messages: [String], reasoning: String)
+        case returningHome
         case sending(index: Int, total: Int)
         case error(String)
         
@@ -108,16 +109,24 @@ struct KeyboardMainView: View {
             
         case .ready(let messages, let reasoning):
             ResultsView(
-                messages: messages,
+                initialMessages: messages,
                 reasoning: reasoning,
+                matchProfile: currentMatch,
                 onInsertText: { text in onInsertText(text) },
-                onSwitchKeyboard: onNextKeyboard,
-                onClose: { 
-                    processingState = .idle
-                    // Reload matches to show the new one
-                    matches = MatchStore.shared.loadAllMatches()
+                onDeleteBackward: onDeleteBackward,
+                onClose: {
+                    // Transition to returning home animation
+                    processingState = .returningHome
+                    // After ~1 second animation, go back to idle
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        processingState = .idle
+                        matches = MatchStore.shared.loadAllMatches()
+                    }
                 }
             )
+            
+        case .returningHome:
+            ReturningHomeView()
             
         case .sending(let index, let total):
             ProcessingView(
@@ -636,132 +645,407 @@ struct DraftingAnimationView: View {
 // MARK: - Results View
 
 struct ResultsView: View {
-    let messages: [String]
+    let initialMessages: [String]
     let reasoning: String
+    let matchProfile: MatchProfile?
     let onInsertText: (String) -> Void
-    let onSwitchKeyboard: () -> Void
+    let onDeleteBackward: () -> Void
     let onClose: () -> Void
     
+    @State private var messages: [String] = []
     @State private var confirmedIndices: Set<Int> = []
+    @State private var showTypingKeyboard: Bool = false
+    @State private var regeneratingIndex: Int? = nil
     
     private var allConfirmed: Bool {
-        confirmedIndices.count == messages.count
+        messages.count > 0 && confirmedIndices.count == messages.count
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header — hide text labels when keyboard is active
             HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Tap to send")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-                    Text("Tap each message to paste")
-                        .font(.caption)
-                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+                if !showTypingKeyboard {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Tap to send")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                        Text("Use icons to edit, type, or send")
+                            .font(.caption)
+                            .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+                    }
                 }
                 
                 Spacer()
                 
-                // Switch to system keyboard button
-                Button(action: onSwitchKeyboard) {
-                    Image(systemName: "keyboard")
+                // Toggle between typing keyboard and pills
+                Button(action: { showTypingKeyboard.toggle() }) {
+                    Image(systemName: showTypingKeyboard ? "text.bubble.fill" : "keyboard")
                         .font(.title3)
                         .foregroundStyle(KeyboardBrand.accent)
                 }
                 .padding(.trailing, 8)
                 
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+                // Only show close button when all pills are confirmed
+                if allConfirmed {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+                    }
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
-            .padding(.bottom, 8)
+            .padding(.top, showTypingKeyboard ? 4 : 8)
+            .padding(.bottom, showTypingKeyboard ? 4 : 8)
             
-            // Scrollable message list
-            ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 8) {
-                    ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
-                        TapToConfirmPill(
-                            text: message,
-                            index: index + 1,
-                            isConfirmed: confirmedIndices.contains(index),
-                            onTap: {
-                                // Paste the text
-                                onInsertText(message)
-                                
-                                // Mark as confirmed with animation
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    confirmedIndices.insert(index)
-                                }
-                                
-                                // Haptic feedback
-                                let generator = UIImpactFeedbackGenerator(style: .medium)
-                                generator.impactOccurred()
-                                
-                                // Auto-close when all confirmed
-                                if confirmedIndices.count + 1 == messages.count {
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                        onClose()
+            // Conditionally show pills or typing keyboard
+            if showTypingKeyboard {
+                TypingKeyboardView(
+                    onInsertText: onInsertText,
+                    onDeleteBackward: onDeleteBackward
+                )
+            } else {
+                // Scrollable message list
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 8) {
+                        ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
+                            MessagePill(
+                                text: message,
+                                index: index + 1,
+                                isConfirmed: confirmedIndices.contains(index),
+                                isRegenerating: regeneratingIndex == index,
+                                onRegenerate: { regenerateLine(at: index) },
+                                onEditKeyboard: {
+                                    showTypingKeyboard = true
+                                },
+                                onSend: {
+                                    // Paste the text
+                                    onInsertText(message)
+                                    
+                                    // Mark as confirmed with animation
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        confirmedIndices.insert(index)
+                                    }
+                                    
+                                    // Haptic feedback
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
+                                    
+                                    // Auto-close ONLY when ALL pills are confirmed
+                                    if confirmedIndices.count == messages.count {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                            onClose()
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+                .frame(maxHeight: 180)
             }
-            .frame(maxHeight: 180) // Fixed height for scroll area
+        }
+        .onAppear {
+            if messages.isEmpty {
+                messages = initialMessages
+            }
+        }
+    }
+    
+    // MARK: - Regenerate Single Line
+    
+    private func regenerateLine(at index: Int) {
+        guard regeneratingIndex == nil else { return } // Prevent concurrent regens
+        regeneratingIndex = index
+        
+        Task {
+            do {
+                guard let userProfile = MatchStore.shared.loadUserProfile(),
+                      let match = matchProfile else {
+                    await MainActor.run { regeneratingIndex = nil }
+                    return
+                }
+                
+                let apiClient = KeyboardAPIClient.shared
+                let result = try await apiClient.regenerateLine(
+                    userProfile: userProfile,
+                    matchProfile: match,
+                    allMessages: messages,
+                    lineIndex: index
+                )
+                
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        messages[index] = result.text
+                    }
+                    regeneratingIndex = nil
+                    
+                    // Haptic feedback
+                    let generator = UIImpactFeedbackGenerator(style: .light)
+                    generator.impactOccurred()
+                }
+            } catch {
+                print("[Keyboard] Regen error: \(error)")
+                await MainActor.run {
+                    regeneratingIndex = nil
+                }
+            }
         }
     }
 }
 
-// MARK: - Tap to Confirm Pill
+// MARK: - Message Pill (with 3 action icons)
 
-struct TapToConfirmPill: View {
+struct MessagePill: View {
     let text: String
     let index: Int
     let isConfirmed: Bool
+    let isRegenerating: Bool
+    let onRegenerate: () -> Void
+    let onEditKeyboard: () -> Void
+    let onSend: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            // Order indicator
+            Text("\(index)")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .background(isConfirmed ? KeyboardBrand.success : KeyboardBrand.accent)
+                .clipShape(Circle())
+            
+            // Message text - takes available space
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.black)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            
+            // Action icons (right side)
+            if isConfirmed {
+                // Show green checkmark when confirmed
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.body)
+                    .foregroundStyle(KeyboardBrand.success)
+            } else {
+                HStack(spacing: 12) {
+                    // 1. Regenerate icon (leftmost)
+                    Button(action: onRegenerate) {
+                        if isRegenerating {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 20, height: 20)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(KeyboardBrand.warning)
+                        }
+                    }
+                    .disabled(isRegenerating)
+                    
+                    // 2. Edit/keyboard icon (middle)
+                    Button(action: onEditKeyboard) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(KeyboardBrand.accent)
+                    }
+                    
+                    // 3. Send icon (rightmost)
+                    Button(action: onSend) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(KeyboardBrand.success)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
+        .opacity(isRegenerating ? 0.6 : 1.0)
+        .frame(minHeight: 50)
+    }
+}
+
+// MARK: - Typing Keyboard View
+
+struct TypingKeyboardView: View {
+    let onInsertText: (String) -> Void
+    let onDeleteBackward: () -> Void
+    
+    @State private var isShiftActive = false
+    
+    private let row1 = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]
+    private let row2 = ["A", "S", "D", "F", "G", "H", "J", "K", "L"]
+    private let row3 = ["Z", "X", "C", "V", "B", "N", "M"]
+    
+    var body: some View {
+        VStack(spacing: 5) {
+            // Row 1 — edge to edge
+            HStack(spacing: 4) {
+                ForEach(row1, id: \.self) { key in
+                    KeyButton(
+                        label: isShiftActive ? key : key.lowercased(),
+                        onTap: { insertKey(key) }
+                    )
+                }
+            }
+            
+            // Row 2 — edge to edge
+            HStack(spacing: 4) {
+                ForEach(row2, id: \.self) { key in
+                    KeyButton(
+                        label: isShiftActive ? key : key.lowercased(),
+                        onTap: { insertKey(key) }
+                    )
+                }
+            }
+            
+            // Row 3 — shift + letters + backspace, all edge to edge
+            HStack(spacing: 4) {
+                // Shift key — stretches to fill
+                Button(action: { isShiftActive.toggle() }) {
+                    Image(systemName: isShiftActive ? "shift.fill" : "shift")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(isShiftActive ? .white : KeyboardBrand.keyboardTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(isShiftActive ? KeyboardBrand.accent : KeyboardBrand.keyboardCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                
+                ForEach(row3, id: \.self) { key in
+                    KeyButton(
+                        label: isShiftActive ? key : key.lowercased(),
+                        onTap: { insertKey(key) }
+                    )
+                }
+                
+                // Backspace key — stretches to fill, flush right
+                Button(action: onDeleteBackward) {
+                    Image(systemName: "delete.left")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(KeyboardBrand.keyboardCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            
+            // Row 4 — space + return, centered and narrower
+            HStack(spacing: 6) {
+                // Space bar
+                Button(action: { onInsertText(" ") }) {
+                    Text("space")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .background(KeyboardBrand.keyboardCard)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                
+                // Return key
+                Button(action: { onInsertText("\n") }) {
+                    Text("return")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 80, height: 44)
+                        .background(KeyboardBrand.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+            }
+            .padding(.horizontal, 36) // Indent so bottom row is narrower than letter rows
+        }
+        .padding(.horizontal, 3)
+        .padding(.top, 4)
+        .padding(.bottom, 6)
+    }
+    
+    private func insertKey(_ key: String) {
+        let character = isShiftActive ? key : key.lowercased()
+        onInsertText(character)
+        
+        // Auto-disable shift after typing
+        if isShiftActive {
+            isShiftActive = false
+        }
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.impactOccurred()
+    }
+}
+
+// MARK: - Key Button
+
+struct KeyButton: View {
+    let label: String
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 10) {
-                // Order indicator
-                Text("\(index)")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 22, height: 22)
-                    .background(isConfirmed ? KeyboardBrand.success : KeyboardBrand.accent)
-                    .clipShape(Circle())
-                
-                // Message text
-                Text(text)
-                    .font(.subheadline)
-                    .foregroundStyle(.black)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                
-                Spacer()
-                
-                // Confirmed indicator
-                if isConfirmed {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(KeyboardBrand.success)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
+            Text(label)
+                .font(.system(size: 20, weight: .regular))
+                .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(KeyboardBrand.keyboardCard)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
         }
-        .disabled(isConfirmed)
-        .frame(height: 50)
+    }
+}
+
+// MARK: - Returning Home View
+
+struct ReturningHomeView: View {
+    @State private var checkmarkScale: CGFloat = 0.5
+    @State private var checkmarkOpacity: Double = 0.0
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(KeyboardBrand.success.opacity(0.15))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 44))
+                    .foregroundStyle(KeyboardBrand.success)
+                    .scaleEffect(checkmarkScale)
+                    .opacity(checkmarkOpacity)
+            }
+            
+            Text("Messages sent!")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                .opacity(checkmarkOpacity)
+            
+            ProgressView()
+                .tint(KeyboardBrand.accent)
+                .padding(.top, 4)
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .onAppear {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
+                checkmarkScale = 1.0
+                checkmarkOpacity = 1.0
+            }
+        }
     }
 }
 

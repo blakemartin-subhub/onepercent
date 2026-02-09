@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { PROFILE_PARSING_PROMPT, MESSAGE_GENERATION_PROMPT, CONVERSATION_FOLLOWUP_PROMPT } from '../prompts/index';
+import { PROFILE_PARSING_PROMPT, MESSAGE_GENERATION_PROMPT, CONVERSATION_FOLLOWUP_PROMPT, SINGLE_LINE_REGEN_PROMPT } from '../prompts/index';
 import type { UserProfile, MatchProfile, ParsedProfile, GeneratedMessage, MessageReasoning } from '../types';
 
 // Lazy-initialize OpenAI client
@@ -302,6 +302,61 @@ function buildConstraints(profile: UserProfile, maxChars: number): string {
   constraints.push(`Maximum ${maxChars} characters per message`);
   
   return constraints.join('. ');
+}
+
+/**
+ * Regenerate a single line in a message sequence
+ * Keeps context of other lines, makes the target line sound more human
+ */
+export async function regenerateSingleLine(
+  userProfile: UserProfile,
+  matchProfile: MatchProfile,
+  allMessages: string[],
+  lineIndex: number,
+  options: { tone?: string } = {}
+): Promise<{ text: string; reasoning?: string }> {
+  const { tone = 'playful' } = options;
+
+  const userContext = buildUserContext(userProfile);
+  const matchContext = buildMatchContext(matchProfile);
+
+  // Format messages with line numbers for the prompt
+  const messagesFormatted = allMessages
+    .map((msg, i) => `${i + 1}. "${msg}"${i === lineIndex ? ' ← REWRITE THIS ONE' : ''}`)
+    .join('\n');
+
+  const prompt = SINGLE_LINE_REGEN_PROMPT
+    .replace('{userProfile}', userContext)
+    .replace('{matchProfile}', matchContext)
+    .replace('{lineIndex}', (lineIndex + 1).toString())
+    .replace('{allMessages}', messagesFormatted)
+    .replace('{tone}', tone);
+
+  const response = await getOpenAI().chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: prompt },
+      { role: 'user', content: `Rewrite line ${lineIndex + 1} to sound more natural and human. It should flow well with the other lines.` },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.9, // Higher temperature for more creative/varied rewrites
+    max_tokens: 500,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from OpenAI');
+  }
+
+  try {
+    const parsed = JSON.parse(content) as { text: string; reasoning?: string };
+    return {
+      text: parsed.text || allMessages[lineIndex],
+      reasoning: parsed.reasoning,
+    };
+  } catch (error) {
+    throw new Error('Failed to parse OpenAI response as JSON');
+  }
 }
 
 /**

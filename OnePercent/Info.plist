@@ -22,7 +22,7 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.dave.onepercent.app</string>
+			<string>com.blakemartin.onepercent.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>onepercent</string>
