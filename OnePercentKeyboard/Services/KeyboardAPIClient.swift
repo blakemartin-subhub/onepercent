@@ -14,7 +14,7 @@ actor KeyboardAPIClient {
     
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 90  // Increased for OpenAI API calls
+        config.timeoutIntervalForRequest = 90
         config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         
@@ -31,15 +31,17 @@ actor KeyboardAPIClient {
         return try await post("/v1/profile/parse", body: request)
     }
     
-    /// Generate messages for a match (new opener)
+    /// Generate messages for a match (opener)
     func generateMessages(
         userProfile: UserProfile,
-        matchProfile: MatchProfile
+        matchProfile: MatchProfile,
+        direction: String? = nil
     ) async throws -> (messages: [GeneratedMessage], reasoning: String?) {
         let request = KeyboardGenerateMessagesRequest(
             userProfile: userProfile,
             matchProfile: matchProfile,
-            conversationContext: nil
+            conversationContext: nil,
+            direction: direction
         )
         
         let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)
@@ -50,12 +52,14 @@ actor KeyboardAPIClient {
     func generateConversationMessages(
         userProfile: UserProfile,
         matchProfile: MatchProfile,
-        conversationContext: String
+        conversationContext: String,
+        direction: String? = nil
     ) async throws -> (messages: [GeneratedMessage], reasoning: String?) {
         let request = KeyboardGenerateMessagesRequest(
             userProfile: userProfile,
             matchProfile: matchProfile,
-            conversationContext: conversationContext
+            conversationContext: conversationContext,
+            direction: direction
         )
         
         let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)
@@ -88,7 +92,6 @@ actor KeyboardAPIClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Use device ID from UserDefaults
         let deviceToken = getDeviceToken()
         request.setValue("Bearer \(deviceToken)", forHTTPHeaderField: "Authorization")
         
@@ -135,24 +138,23 @@ struct KeyboardParseProfileResponse: Decodable {
     let occupation: String?
     let interests: [String]
     let hooks: [String]
+    let contentType: String? // "profile" or "conversation" — auto-detected by backend
     
-    // Defensive decoder - handles nulls and field name variations
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try? container.decode(String.self, forKey: .name)
         age = try? container.decode(Int.self, forKey: .age)
         bio = try? container.decode(String.self, forKey: .bio)
         location = try? container.decode(String.self, forKey: .location)
-        // Backend returns "job", we store as occupation
-        occupation = (try? container.decode(String.self, forKey: .job)) ?? 
+        occupation = (try? container.decode(String.self, forKey: .job)) ??
                      (try? container.decode(String.self, forKey: .occupation))
-        // Handle null arrays gracefully
         interests = (try? container.decode([String].self, forKey: .interests)) ?? []
         hooks = (try? container.decode([String].self, forKey: .hooks)) ?? []
+        contentType = try? container.decode(String.self, forKey: .contentType)
     }
     
     private enum CodingKeys: String, CodingKey {
-        case name, age, bio, location, occupation, job, interests, hooks
+        case name, age, bio, location, occupation, job, interests, hooks, contentType
     }
     
     func toMatchProfile(rawOcrText: String) -> MatchProfile {
@@ -173,13 +175,13 @@ struct KeyboardGenerateMessagesRequest: Encodable {
     let userProfile: UserProfile
     let matchProfile: MatchProfile
     let conversationContext: String?
+    let direction: String? // MVP: user's direction (e.g. "Funny. get her to grab coffee with me")
 }
 
 struct KeyboardGenerateMessagesResponse: Decodable {
     let messages: [GeneratedMessage]
     let reasoning: String?
     
-    // Defensive decoder - uses try? to silently handle any decoding failures
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         messages = (try? container.decode([GeneratedMessage].self, forKey: .messages)) ?? []

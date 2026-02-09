@@ -142,12 +142,13 @@ struct KeyboardSetupView: View {
         .background(Brand.background.ignoresSafeArea())
         .onAppear {
             // Only animate on appear if this is already the active step (e.g., in preview)
-            if step == 3 {
+            // MVP: keyboard setup is now step 2 (was step 3)
+            if step == 2 {
                 startEntranceAnimations()
             }
         }
         .onChange(of: step) { _, newValue in
-            if newValue == 3 {
+            if newValue == 2 {
                 var t = Transaction()
                 t.disablesAnimations = true
                 withTransaction(t) {
@@ -289,5 +290,5 @@ struct SetupStepRow: View {
 }
 
 #Preview {
-    KeyboardSetupView(step: 3, onContinue: {})
+    KeyboardSetupView(step: 2, onContinue: {})
 }

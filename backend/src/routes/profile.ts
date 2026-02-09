@@ -33,7 +33,7 @@ profileRouter.post('/parse', async (req: Request, res: Response, next: NextFunct
     const parsedProfile = await parseProfile(ocrText);
 
     // Log success
-    console.log(`[profile/parse] Successfully parsed profile: ${parsedProfile.name || 'unknown'}`);
+    console.log(`[profile/parse] Successfully parsed profile: ${parsedProfile.name || 'unknown'}, contentType: ${parsedProfile.contentType || 'unknown'}`);
 
     return res.json(parsedProfile);
   } catch (error) {

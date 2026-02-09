@@ -58,6 +58,7 @@ export interface ParsedProfile {
   hooks: string[];
   confidence: number;
   personalityRead?: PersonalityRead;
+  contentType?: 'profile' | 'conversation'; // auto-detected: is this a dating profile or a conversation?
 }
 
 export interface MessageReasoning {

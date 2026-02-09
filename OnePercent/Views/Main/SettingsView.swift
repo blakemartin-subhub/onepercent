@@ -79,16 +79,6 @@ struct SettingsView: View {
                 SettingsSection(title: "Your Data") {
                     VStack(spacing: 0) {
                         SettingsRow(
-                            icon: "heart.fill",
-                            iconColor: Brand.accent,
-                            title: "Saved Matches",
-                            trailing: .value("\(appState.matches.count)")
-                        )
-                        
-                        Divider()
-                            .padding(.leading, 52)
-                        
-                        SettingsRow(
                             icon: "trash.fill",
                             iconColor: Brand.error,
                             title: "Delete All Data",
@@ -176,7 +166,10 @@ struct ProfileCard: View {
                         .foregroundStyle(Brand.textPrimary)
                     
                     HStack(spacing: 6) {
-                        Label(profile.voiceTone.displayName, systemImage: "sparkles")
+                        let toneText = profile.voiceTones.isEmpty 
+                            ? profile.voiceTone.displayName 
+                            : profile.voiceTones.map { $0.displayName }.joined(separator: ", ")
+                        Label(toneText, systemImage: "sparkles")
                             .font(.caption)
                             .foregroundStyle(Brand.textSecondary)
                         
@@ -198,7 +191,7 @@ struct ProfileCard: View {
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                    .fill(.white)
+                    .fill(Brand.card)
                     .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
             )
         }
@@ -224,7 +217,7 @@ struct SettingsSection<Content: View>: View {
             }
             .background(
                 RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                    .fill(.white)
+                    .fill(Brand.card)
                     .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
             )
         }
@@ -416,7 +409,7 @@ struct PrivacyCard: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                .fill(.white)
+                .fill(Brand.card)
                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
         )
     }
@@ -429,17 +422,8 @@ struct EditProfileView: View {
     @EnvironmentObject var appState: AppState
     
     @State private var name = ""
-    @State private var selectedTone: VoiceTone = .playful
+    @State private var selectedTones: Set<VoiceTone> = [.playful]
     @State private var selectedEmojiStyle: EmojiStyle = .light
-    @State private var selectedBoundaries: Set<String> = []
-    
-    private let boundaries = [
-        "No sexual content",
-        "No negging or put-downs",
-        "No manipulation tactics",
-        "Keep it respectful",
-        "No mentioning AI"
-    ]
     
     var body: some View {
         ScrollView {
@@ -469,27 +453,39 @@ struct EditProfileView: View {
                         .padding(16)
                         .background(
                             RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                                .fill(.white)
+                                .fill(Brand.card)
                                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
                         )
                 }
                 .padding(.horizontal, 20)
                 
-                // Voice Tone
+                // Voice Tone (multi-select)
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Voice & Tone")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Brand.textSecondary)
-                        .padding(.horizontal, 20)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Your Vibe")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Brand.textSecondary)
+                        
+                        Text("Pick 1-3 message styles")
+                            .font(.caption)
+                            .foregroundStyle(Brand.textMuted)
+                    }
+                    .padding(.horizontal, 20)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(VoiceTone.allCases, id: \.self) { tone in
                                 ToneChip(
                                     title: tone.displayName,
-                                    isSelected: selectedTone == tone
+                                    isSelected: selectedTones.contains(tone)
                                 ) {
-                                    selectedTone = tone
+                                    if selectedTones.contains(tone) {
+                                        if selectedTones.count > 1 {
+                                            selectedTones.remove(tone)
+                                        }
+                                    } else {
+                                        selectedTones.insert(tone)
+                                    }
                                 }
                             }
                         }
@@ -517,39 +513,6 @@ struct EditProfileView: View {
                     .padding(.horizontal, 20)
                 }
                 
-                // Boundaries
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Content Boundaries")
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(Brand.textSecondary)
-                    
-                    VStack(spacing: 0) {
-                        ForEach(Array(boundaries.enumerated()), id: \.element) { index, boundary in
-                            if index > 0 {
-                                Divider()
-                                    .padding(.leading, 16)
-                            }
-                            
-                            BoundaryRow(
-                                title: boundary,
-                                isEnabled: selectedBoundaries.contains(boundary)
-                            ) { isOn in
-                                if isOn {
-                                    selectedBoundaries.insert(boundary)
-                                } else {
-                                    selectedBoundaries.remove(boundary)
-                                }
-                            }
-                        }
-                    }
-                    .background(
-                        RoundedRectangle(cornerRadius: Brand.radiusMedium)
-                            .fill(.white)
-                            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 2)
-                    )
-                }
-                .padding(.horizontal, 20)
-                
                 Spacer(minLength: 32)
             }
         }
@@ -570,9 +533,12 @@ struct EditProfileView: View {
         .onAppear {
             if let profile = appState.userProfile {
                 name = profile.displayName
-                selectedTone = profile.voiceTone
+                if !profile.voiceTones.isEmpty {
+                    selectedTones = Set(profile.voiceTones)
+                } else {
+                    selectedTones = [profile.voiceTone]
+                }
                 selectedEmojiStyle = profile.emojiStyle
-                selectedBoundaries = Set(profile.hardBoundaries)
             }
         }
     }
@@ -580,9 +546,9 @@ struct EditProfileView: View {
     private func saveProfile() {
         var profile = appState.userProfile ?? UserProfile(displayName: name)
         profile.displayName = name
-        profile.voiceTone = selectedTone
+        profile.voiceTone = Array(selectedTones).first ?? .playful
+        profile.voiceTones = Array(selectedTones)
         profile.emojiStyle = selectedEmojiStyle
-        profile.hardBoundaries = Array(selectedBoundaries)
         profile.updatedAt = Date()
         
         appState.saveUserProfile(profile)
@@ -604,7 +570,7 @@ struct ToneChip: View {
                 .padding(.vertical, 10)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isSelected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Color.white))
+                        .fill(isSelected ? AnyShapeStyle(Brand.accent) : AnyShapeStyle(Brand.card))
                         .shadow(color: .black.opacity(0.04), radius: 4, x: 0, y: 2)
                 )
         }

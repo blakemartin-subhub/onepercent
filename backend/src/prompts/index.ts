@@ -14,6 +14,12 @@ RULES:
 5. Extract "hooks" - specific details that could spark curiosity or connection
 6. CRITICAL: Analyze their personality archetype based on tone, interests, and presentation
 
+CONTENT TYPE DETECTION:
+Analyze the OCR text to determine what type of content this is:
+- "profile" — a dating profile (bio, prompts, interests, photos context)
+- "conversation" — a text/chat conversation between two people
+Look for chat indicators: message bubbles, timestamps, back-and-forth dialogue, "You:", etc.
+
 SCHEMA:
 {
   "name": string | null,
@@ -27,6 +33,7 @@ SCHEMA:
   "location": string | null,
   "hooks": string[],
   "confidence": number (0-1),
+  "contentType": "profile" | "conversation",
   "personalityRead": {
     "archetype": string,
     "vibe": string,

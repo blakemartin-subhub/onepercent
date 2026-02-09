@@ -3,79 +3,101 @@ import SharedKit
 import PhotosUI
 import AVFoundation
 
-/// Main keyboard view with full in-keyboard processing
+/// MVP keyboard view: Import → Processing → Direction → Results (stateless sessions)
 struct KeyboardMainView: View {
     let onInsertText: (String) -> Void
     let onDeleteBackward: () -> Void
     let onNextKeyboard: () -> Void
     let onOpenApp: () -> Void
     
-    @State private var matches: [MatchProfile] = []
-    @State private var currentMatch: MatchProfile?
-    @State private var currentMessages: GeneratedMessageSet?
-    @State private var processingState: ProcessingState = .idle
-    @State private var errorMessage: String?
+    @State private var processingState: KeyboardState = .idle
     
-    // Video picker state
+    // Import pickers
     @State private var selectedVideoItem: PhotosPickerItem?
-    @State private var isLoadingVideo = false
+    @State private var selectedImageItems: [PhotosPickerItem] = []
     
-    enum ProcessingState: Equatable {
+    // Parsed context (passed between states)
+    @State private var parsedProfile: MatchProfile?
+    @State private var ocrText: String = ""
+    @State private var contentType: ContentType = .profile // auto-detected
+    
+    // Direction state
+    @State private var selectedDirection: MessageDirection?
+    @State private var customInstruction: String = ""
+    
+    enum ContentType {
+        case profile     // First message / opener
+        case conversation // Reply to ongoing chat
+    }
+    
+    enum KeyboardState: Equatable {
         case idle
         case loadingVideo
         case extractingFrames(progress: Double)
         case runningOCR(progress: Double)
         case parsingProfile
+        case direction(name: String)
         case generatingMessages(name: String, step: DraftingStep)
         case ready(messages: [String], reasoning: String)
         case returningHome
-        case sending(index: Int, total: Int)
         case error(String)
         
         enum DraftingStep: String, Equatable {
-            case analyzing = "Analyzing profile..."
+            case analyzing = "Analyzing context..."
             case finding = "Finding conversation hooks..."
-            case crafting = "Crafting opener..."
+            case crafting = "Crafting messages..."
             case optimizing = "Optimizing tone..."
+        }
+    }
+    
+    enum MessageDirection: String, CaseIterable {
+        case funny = "Funny"
+        case flirty = "Flirty"
+        case bold = "Bold"
+        case chill = "Chill"
+        case date = "Schedule a Date"
+        
+        var icon: String {
+            switch self {
+            case .funny: return "face.smiling"
+            case .flirty: return "heart"
+            case .bold: return "flame"
+            case .chill: return "leaf"
+            case .date: return "calendar"
+            }
         }
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Main content area - fills available space
             mainContentView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(KeyboardBrand.keyboardBackground)
-        .onAppear(perform: loadData)
         .onChange(of: selectedVideoItem) { _, newItem in
             if let item = newItem {
                 processSelectedVideo(item)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .processConversationVideo)) { notification in
-            if let userInfo = notification.userInfo,
-               let item = userInfo["item"] as? PhotosPickerItem,
-               let match = userInfo["match"] as? MatchProfile {
-                processConversationVideo(item, for: match)
+        .onChange(of: selectedImageItems) { _, newItems in
+            if !newItems.isEmpty {
+                processSelectedImages(newItems)
             }
         }
     }
+    
+    // MARK: - Main Content Router
     
     @ViewBuilder
     private var mainContentView: some View {
         switch processingState {
         case .idle:
-            if matches.isEmpty {
-                emptyStateView
-            } else {
-                matchListView
-            }
+            importView
             
         case .loadingVideo:
             ProcessingView(
                 icon: "arrow.down.circle",
-                title: "Loading video...",
+                title: "Loading...",
                 subtitle: nil,
                 progress: nil
             )
@@ -91,7 +113,7 @@ struct KeyboardMainView: View {
         case .runningOCR(let progress):
             ProcessingView(
                 icon: "text.viewfinder",
-                title: "Reading profile...",
+                title: "Reading content...",
                 subtitle: "\(Int(progress * 100))%",
                 progress: progress
             )
@@ -99,10 +121,13 @@ struct KeyboardMainView: View {
         case .parsingProfile:
             ProcessingView(
                 icon: "person.text.rectangle",
-                title: "Understanding profile...",
+                title: "Understanding context...",
                 subtitle: nil,
                 progress: nil
             )
+            
+        case .direction(let name):
+            directionView(name: name)
             
         case .generatingMessages(let name, let step):
             DraftingAnimationView(name: name, step: step)
@@ -111,30 +136,22 @@ struct KeyboardMainView: View {
             ResultsView(
                 initialMessages: messages,
                 reasoning: reasoning,
-                matchProfile: currentMatch,
+                matchProfile: parsedProfile,
+                selectedDirection: selectedDirection,
+                customInstruction: customInstruction,
                 onInsertText: { text in onInsertText(text) },
                 onDeleteBackward: onDeleteBackward,
-                onClose: {
-                    // Transition to returning home animation
-                    processingState = .returningHome
-                    // After ~1 second animation, go back to idle
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        processingState = .idle
-                        matches = MatchStore.shared.loadAllMatches()
-                    }
-                }
+                onRegenerate: { direction, instruction in
+                    // Regenerate all with new direction
+                    selectedDirection = direction
+                    customInstruction = instruction
+                    generateMessages()
+                },
+                onClose: { resetToIdle() }
             )
             
         case .returningHome:
             ReturningHomeView()
-            
-        case .sending(let index, let total):
-            ProcessingView(
-                icon: "paperplane.fill",
-                title: "Sending \(index)/\(total)...",
-                subtitle: nil,
-                progress: Double(index) / Double(total)
-            )
             
         case .error(let message):
             ErrorView(message: message) {
@@ -143,224 +160,157 @@ struct KeyboardMainView: View {
         }
     }
     
-    // MARK: - Empty State
+    // MARK: - State 1: Import View
     
-    private var emptyStateView: some View {
-        VStack(spacing: 20) {
+    private var importView: some View {
+        VStack(spacing: 16) {
             Spacer()
+            
+            // User name greeting
+            if let profile = MatchStore.shared.loadUserProfile() {
+                Text("Hey \(profile.displayName)")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+            }
             
             // Icon
             ZStack {
                 Circle()
                     .fill(KeyboardBrand.accentLight.opacity(0.3))
-                    .frame(width: 80, height: 80)
+                    .frame(width: 64, height: 64)
                 
-                Image(systemName: "heart.text.square")
-                    .font(.system(size: 34))
+                Image(systemName: "text.viewfinder")
+                    .font(.system(size: 28))
                     .foregroundStyle(KeyboardBrand.accent)
             }
             
-            VStack(spacing: 8) {
-                Text("Add Your First Match")
-                    .font(.title3.weight(.semibold))
+            VStack(spacing: 6) {
+                Text("Import a profile or conversation")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
-                Text("Screen record their dating profile")
-                    .font(.subheadline)
+                Text("Screen record or screenshot what you see")
+                    .font(.caption)
                     .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
             }
             
-            PhotosPicker(
-                selection: $selectedVideoItem,
-                matching: .videos
-            ) {
-                HStack(spacing: 8) {
-                    Image(systemName: "record.circle.fill")
-                    Text("Import Recording")
+            // Import buttons
+            HStack(spacing: 12) {
+                // Screen Recording
+                PhotosPicker(
+                    selection: $selectedVideoItem,
+                    matching: .videos
+                ) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "record.circle.fill")
+                            .font(.caption.weight(.semibold))
+                        Text("Recording")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(KeyboardBrand.accent)
+                    .clipShape(Capsule())
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 14)
-                .background(KeyboardBrand.accent)
-                .clipShape(Capsule())
+                
+                // Screenshots
+                PhotosPicker(
+                    selection: $selectedImageItems,
+                    maxSelectionCount: 5,
+                    matching: .images
+                ) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.caption.weight(.semibold))
+                        Text("Screenshots")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(KeyboardBrand.keyboardCard)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(KeyboardBrand.keyboardTextSecondary.opacity(0.3), lineWidth: 1)
+                    )
+                }
             }
             
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 12)
     }
     
-    // MARK: - Match List
+    // MARK: - State 3: Direction View
     
-    private var matchListView: some View {
-        VStack(spacing: 0) {
-            // Header with add button
+    private func directionView(name: String) -> some View {
+        VStack(spacing: 10) {
+            // Header with name
             HStack {
-                Text("Your Matches")
-                    .font(.body.weight(.semibold))
+                let label = contentType == .conversation ? "Replying to" : "Opening with"
+                Text("\(label) \(name)")
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Spacer()
                 
-                PhotosPicker(
-                    selection: $selectedVideoItem,
-                    matching: .videos
-                ) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus")
-                            .font(.caption.weight(.bold))
-                        Text("New")
-                            .font(.caption.weight(.semibold))
-                    }
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(KeyboardBrand.accent)
-                    .clipShape(Capsule())
+                Button(action: { resetToIdle() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
-            .padding(.bottom, 10)
+            .padding(.top, 10)
             
-            // Match cards - vertical list
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 10) {
-                    ForEach(matches) { match in
-                        MatchRow(
-                            match: match,
-                            onTapMessages: { selectMatch(match) },
-                            onTapUpdate: { startConversationUpdate(for: match) }
-                        )
+            // Direction pills
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(MessageDirection.allCases, id: \.self) { direction in
+                        DirectionPill(
+                            direction: direction,
+                            isSelected: selectedDirection == direction
+                        ) {
+                            if selectedDirection == direction {
+                                selectedDirection = nil
+                            } else {
+                                selectedDirection = direction
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 12)
+                .padding(.horizontal, 16)
             }
+            
+            // Custom instruction text field
+            HStack(spacing: 8) {
+                TextField("e.g. get her to grab coffee with me", text: $customInstruction)
+                    .font(.caption)
+                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                    .tint(KeyboardBrand.accent)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(KeyboardBrand.keyboardCard)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                
+                // Generate button
+                Button(action: { generateMessages() }) {
+                    Image(systemName: "sparkles")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(KeyboardBrand.accent)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Conversation Update
-    
-    @State private var matchForConversationUpdate: MatchProfile?
-    @State private var conversationVideoItem: PhotosPickerItem?
-    
-    private func startConversationUpdate(for match: MatchProfile) {
-        matchForConversationUpdate = match
-        // The PhotosPicker will be triggered by the row
-    }
-    
-    private func processConversationVideo(_ item: PhotosPickerItem, for match: MatchProfile) {
-        processingState = .loadingVideo
-        
-        Task {
-            do {
-                guard let video = try await item.loadTransferable(type: KeyboardVideoTransferable.self) else {
-                    throw KeyboardProcessingError.videoLoadFailed
-                }
-                
-                guard FileManager.default.fileExists(atPath: video.url.path) else {
-                    throw KeyboardProcessingError.videoLoadFailed
-                }
-                
-                await processConversationVideoFile(video.url, for: match)
-            } catch {
-                await MainActor.run {
-                    processingState = .error("Unable to load video")
-                    conversationVideoItem = nil
-                    matchForConversationUpdate = nil
-                }
-            }
-        }
-    }
-    
-    private func processConversationVideoFile(_ url: URL, for match: MatchProfile) async {
-        do {
-            // Phase 1: Extract frames & OCR
-            await MainActor.run { processingState = .extractingFrames(progress: 0) }
-            
-            let videoService = KeyboardVideoService()
-            let conversationText = try await videoService.extractTextFromVideo(at: url) { progress, _ in
-                Task { @MainActor in
-                    if progress < 0.5 {
-                        processingState = .extractingFrames(progress: progress * 2)
-                    } else {
-                        processingState = .runningOCR(progress: (progress - 0.5) * 2)
-                    }
-                }
-            }
-            
-            print("[Keyboard] Conversation OCR text length: \(conversationText.count)")
-            
-            // Phase 2: Generate follow-up messages with conversation context
-            guard let userProfile = MatchStore.shared.loadUserProfile() else {
-                throw KeyboardProcessingError.noUserProfile
-            }
-            
-            let name = match.name ?? "Match"
-            
-            for step in [ProcessingState.DraftingStep.analyzing, .finding, .crafting, .optimizing] {
-                await MainActor.run {
-                    processingState = .generatingMessages(name: name, step: step)
-                }
-                try await Task.sleep(nanoseconds: 500_000_000)
-            }
-            
-            let apiClient = KeyboardAPIClient.shared
-            let result = try await apiClient.generateConversationMessages(
-                userProfile: userProfile,
-                matchProfile: match,
-                conversationContext: conversationText
-            )
-            
-            // Save updated messages
-            let messageSet = GeneratedMessageSet(
-                matchId: match.matchId,
-                messages: result.messages,
-                toneUsed: userProfile.voiceTone
-            )
-            
-            MatchStore.shared.saveMessages(messageSet)
-            
-            // Show results
-            let sortedMessages = result.messages.sorted { ($0.order ?? 0) < ($1.order ?? 0) }
-            let messageTexts = sortedMessages.map { $0.text }
-            let reasoning = result.reasoning ?? "Based on your conversation"
-            
-            await MainActor.run {
-                currentMatch = match
-                processingState = .ready(messages: messageTexts, reasoning: reasoning)
-                conversationVideoItem = nil
-                matchForConversationUpdate = nil
-            }
-            
-        } catch {
-            print("[Keyboard] Conversation processing error: \(error)")
-            await MainActor.run {
-                processingState = .error(error.localizedDescription)
-                conversationVideoItem = nil
-                matchForConversationUpdate = nil
-            }
-        }
-    }
-    
-    // MARK: - Data Loading
-    
-    private func loadData() {
-        matches = MatchStore.shared.loadAllMatches()
-    }
-    
-    private func selectMatch(_ match: MatchProfile) {
-        currentMatch = match
-        if let messages = MatchStore.shared.loadMessages(for: match.id) {
-            let messageTexts = messages.messages.map { $0.text }
-            let reasoning = generateReasoning(for: match)
-            processingState = .ready(messages: messageTexts, reasoning: reasoning)
-        }
     }
     
     // MARK: - Video Processing
@@ -370,34 +320,22 @@ struct KeyboardMainView: View {
         
         Task {
             do {
-                print("[Keyboard] Loading video from PhotosPicker...")
-                
-                // Try to load the video
                 guard let video = try await item.loadTransferable(type: KeyboardVideoTransferable.self) else {
-                    print("[Keyboard] Video transferable returned nil")
                     throw KeyboardProcessingError.videoLoadFailed
                 }
-                
-                print("[Keyboard] Video loaded successfully: \(video.url)")
-                
-                // Check if file exists
                 guard FileManager.default.fileExists(atPath: video.url.path) else {
-                    print("[Keyboard] Video file doesn't exist at path")
                     throw KeyboardProcessingError.videoLoadFailed
                 }
-                
                 await processVideoFile(video.url)
             } catch {
-                print("[Keyboard] Error loading video: \(error)")
                 await MainActor.run {
-                    // Check if it's likely a permissions issue
                     let errorMessage: String
-                    if error.localizedDescription.contains("permission") || 
+                    if error.localizedDescription.contains("permission") ||
                        error.localizedDescription.contains("access") ||
                        error.localizedDescription.contains("denied") {
                         errorMessage = "Enable 'Allow Full Access' in Settings → Keyboard → OnePercent"
                     } else {
-                        errorMessage = "Unable to load video. Make sure Full Access is enabled for this keyboard."
+                        errorMessage = "Unable to load video. Make sure Full Access is enabled."
                     }
                     processingState = .error(errorMessage)
                     selectedVideoItem = nil
@@ -408,11 +346,10 @@ struct KeyboardMainView: View {
     
     private func processVideoFile(_ url: URL) async {
         do {
-            // Phase 1: Extract frames
             await MainActor.run { processingState = .extractingFrames(progress: 0) }
             
             let videoService = KeyboardVideoService()
-            let ocrText = try await videoService.extractTextFromVideo(at: url) { progress, status in
+            let extractedText = try await videoService.extractTextFromVideo(at: url) { progress, _ in
                 Task { @MainActor in
                     if progress < 0.5 {
                         processingState = .extractingFrames(progress: progress * 2)
@@ -422,75 +359,71 @@ struct KeyboardMainView: View {
                 }
             }
             
-            print("[Keyboard] OCR text length: \(ocrText.count)")
+            await parseExtractedText(extractedText)
             
-            // Phase 2: Parse profile with AI
-            await MainActor.run { processingState = .parsingProfile }
+        } catch {
+            await handleProcessingError(error)
+        }
+    }
+    
+    // MARK: - Image Processing
+    
+    private func processSelectedImages(_ items: [PhotosPickerItem]) {
+        processingState = .loadingVideo // reuse loading state
+        
+        Task {
+            do {
+                // Load all images first
+                var images: [UIImage] = []
+                for item in items {
+                    if let data = try await item.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        images.append(image)
+                    }
+                }
+                
+                guard !images.isEmpty else {
+                    throw KeyboardProcessingError.videoLoadFailed
+                }
+                
+                let ocrService = KeyboardOCRService()
+                let text = try await ocrService.recognizeText(from: images) { progress in
+                    Task { @MainActor in
+                        processingState = .runningOCR(progress: progress)
+                    }
+                }
+                
+                await parseExtractedText(text)
+                
+            } catch {
+                await handleProcessingError(error)
+            }
+        }
+    }
+    
+    // MARK: - Parse & Transition to Direction
+    
+    private func parseExtractedText(_ text: String) async {
+        do {
+            await MainActor.run {
+                ocrText = text
+                processingState = .parsingProfile
+            }
             
             let apiClient = KeyboardAPIClient.shared
             let parseResponse: KeyboardParseProfileResponse
+            
             do {
-                parseResponse = try await apiClient.parseProfile(ocrText: ocrText)
+                parseResponse = try await apiClient.parseProfile(ocrText: text)
             } catch {
-                // Check if this is a network error and provide a better message
                 let nsError = error as NSError
-                print("[Keyboard] API error: \(nsError.domain) code: \(nsError.code) - \(nsError.localizedDescription)")
                 if nsError.domain == NSURLErrorDomain {
                     switch nsError.code {
                     case NSURLErrorNotConnectedToInternet:
                         throw KeyboardProcessingError.networkError("No internet connection")
-                    case NSURLErrorNetworkConnectionLost:
-                        throw KeyboardProcessingError.networkError("Connection lost")
                     case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
                         throw KeyboardProcessingError.serverUnreachable
-                    case -1020: // NSURLErrorNotPermittedByDNE (Local Network permission denied)
-                        throw KeyboardProcessingError.networkError("Local Network access denied. Go to Settings → Privacy → Local Network → Enable One Percent")
-                    default:
-                        throw KeyboardProcessingError.networkError("Code \(nsError.code): \(nsError.localizedDescription)")
-                    }
-                }
-                throw error
-            }
-            let matchProfile = parseResponse.toMatchProfile(rawOcrText: ocrText)
-            
-            print("[Keyboard] Parsed profile: \(matchProfile.name ?? "unknown")")
-            
-            // Phase 3: Generate messages
-            guard let userProfile = MatchStore.shared.loadUserProfile() else {
-                throw KeyboardProcessingError.noUserProfile
-            }
-            
-            let name = matchProfile.name ?? "Match"
-            
-            // Animate through drafting steps
-            for step in [ProcessingState.DraftingStep.analyzing, .finding, .crafting, .optimizing] {
-                await MainActor.run {
-                    processingState = .generatingMessages(name: name, step: step)
-                }
-                try await Task.sleep(nanoseconds: 600_000_000) // 0.6s per step
-            }
-            
-            let messages: [GeneratedMessage]
-            let apiReasoning: String?
-            do {
-                let result = try await apiClient.generateMessages(
-                    userProfile: userProfile,
-                    matchProfile: matchProfile
-                )
-                messages = result.messages
-                apiReasoning = result.reasoning
-            } catch {
-                let nsError = error as NSError
-                print("[Keyboard] Generate messages error: \(nsError.domain) code: \(nsError.code) - \(nsError.localizedDescription)")
-                if nsError.domain == NSURLErrorDomain {
-                    switch nsError.code {
-                    case NSURLErrorNotConnectedToInternet:
-                        throw KeyboardProcessingError.networkError("No internet connection")
-                    case NSURLErrorNetworkConnectionLost:
-                        throw KeyboardProcessingError.networkError("Connection lost")
-                    case NSURLErrorCannotConnectToHost, NSURLErrorTimedOut:
-                        throw KeyboardProcessingError.serverUnreachable
-                    case -1020: // NSURLErrorNotPermittedByDNE (Local Network permission denied)
+                    case -1020:
                         throw KeyboardProcessingError.networkError("Local Network access denied. Go to Settings → Privacy → Local Network → Enable One Percent")
                     default:
                         throw KeyboardProcessingError.networkError("Code \(nsError.code): \(nsError.localizedDescription)")
@@ -499,44 +432,150 @@ struct KeyboardMainView: View {
                 throw error
             }
             
-            // Save to store
-            let messageSet = GeneratedMessageSet(
-                matchId: matchProfile.matchId,
-                messages: messages,
-                toneUsed: userProfile.voiceTone
-            )
+            let profile = parseResponse.toMatchProfile(rawOcrText: text)
+            let name = profile.name ?? "Match"
             
-            MatchStore.shared.saveMatch(matchProfile)
-            MatchStore.shared.saveMessages(messageSet)
-            MatchStore.shared.saveLastSelectedMatch(matchProfile.matchId)
-            
-            // Show results - sort messages by order if available
-            let sortedMessages = messages.sorted { ($0.order ?? 0) < ($1.order ?? 0) }
-            let messageTexts = sortedMessages.map { $0.text }
-            let reasoning = apiReasoning ?? generateReasoning(for: matchProfile)
+            // Auto-detect content type from the parse response
+            let detected: ContentType = parseResponse.contentType == "conversation" ? .conversation : .profile
             
             await MainActor.run {
-                currentMatch = matchProfile
-                matches = MatchStore.shared.loadAllMatches()
-                processingState = .ready(messages: messageTexts, reasoning: reasoning)
+                parsedProfile = profile
+                contentType = detected
+                selectedDirection = nil
+                customInstruction = ""
+                processingState = .direction(name: name)
                 selectedVideoItem = nil
+                selectedImageItems = []
             }
             
         } catch {
-            print("[Keyboard] Processing error: \(error)")
-            await MainActor.run {
-                processingState = .error(error.localizedDescription)
-                selectedVideoItem = nil
+            await handleProcessingError(error)
+        }
+    }
+    
+    // MARK: - Generate Messages
+    
+    private func generateMessages() {
+        guard let match = parsedProfile else { return }
+        let name = match.name ?? "Match"
+        
+        processingState = .generatingMessages(name: name, step: .analyzing)
+        
+        Task {
+            do {
+                guard let userProfile = MatchStore.shared.loadUserProfile() else {
+                    throw KeyboardProcessingError.noUserProfile
+                }
+                
+                // Animate through drafting steps
+                for step in [KeyboardState.DraftingStep.analyzing, .finding, .crafting, .optimizing] {
+                    await MainActor.run {
+                        processingState = .generatingMessages(name: name, step: step)
+                    }
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                }
+                
+                let apiClient = KeyboardAPIClient.shared
+                
+                // Build direction string from pills + custom text
+                let directionText = buildDirectionString()
+                
+                let result: (messages: [GeneratedMessage], reasoning: String?)
+                
+                if contentType == .conversation {
+                    result = try await apiClient.generateConversationMessages(
+                        userProfile: userProfile,
+                        matchProfile: match,
+                        conversationContext: ocrText,
+                        direction: directionText
+                    )
+                } else {
+                    result = try await apiClient.generateMessages(
+                        userProfile: userProfile,
+                        matchProfile: match,
+                        direction: directionText
+                    )
+                }
+                
+                let sortedMessages = result.messages.sorted { ($0.order ?? 0) < ($1.order ?? 0) }
+                let messageTexts = sortedMessages.map { $0.text }
+                let reasoning = result.reasoning ?? "Based on their profile"
+                
+                await MainActor.run {
+                    processingState = .ready(messages: messageTexts, reasoning: reasoning)
+                }
+                
+            } catch {
+                await handleProcessingError(error)
             }
         }
     }
     
     // MARK: - Helpers
     
-    private func generateReasoning(for match: MatchProfile) -> String {
-        let name = match.name ?? "They"
-        let interest = match.interests.first ?? "interesting things"
-        return "\(name) mentioned \(interest), so we're leading with that to build genuine connection."
+    private func buildDirectionString() -> String? {
+        var parts: [String] = []
+        if let direction = selectedDirection {
+            parts.append(direction.rawValue)
+        }
+        if !customInstruction.trimmingCharacters(in: .whitespaces).isEmpty {
+            parts.append(customInstruction.trimmingCharacters(in: .whitespaces))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: ". ")
+    }
+    
+    private func resetToIdle() {
+        processingState = .returningHome
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            processingState = .idle
+            parsedProfile = nil
+            ocrText = ""
+            selectedDirection = nil
+            customInstruction = ""
+            selectedVideoItem = nil
+            selectedImageItems = []
+        }
+    }
+    
+    private func handleProcessingError(_ error: Error) async {
+        print("[Keyboard] Processing error: \(error)")
+        await MainActor.run {
+            processingState = .error(error.localizedDescription)
+            selectedVideoItem = nil
+            selectedImageItems = []
+        }
+    }
+}
+
+// MARK: - Direction Pill
+
+struct DirectionPill: View {
+    let direction: KeyboardMainView.MessageDirection
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            action()
+        }) {
+            HStack(spacing: 5) {
+                Image(systemName: direction.icon)
+                    .font(.system(size: 11, weight: .medium))
+                Text(direction.rawValue)
+                    .font(.caption.weight(.medium))
+            }
+            .foregroundStyle(isSelected ? .white : KeyboardBrand.keyboardTextPrimary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(isSelected ? KeyboardBrand.accent : KeyboardBrand.keyboardCard)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? KeyboardBrand.accent : KeyboardBrand.keyboardTextSecondary.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -594,7 +633,7 @@ struct ProcessingView: View {
 
 struct DraftingAnimationView: View {
     let name: String
-    let step: KeyboardMainView.ProcessingState.DraftingStep
+    let step: KeyboardMainView.KeyboardState.DraftingStep
     
     @State private var dotCount = 0
     
@@ -603,7 +642,6 @@ struct DraftingAnimationView: View {
             Spacer()
             
             HStack(spacing: 14) {
-                // Animated pill
                 Image(systemName: "sparkles")
                     .font(.title2)
                     .foregroundStyle(KeyboardBrand.accent)
@@ -648,117 +686,121 @@ struct ResultsView: View {
     let initialMessages: [String]
     let reasoning: String
     let matchProfile: MatchProfile?
+    let selectedDirection: KeyboardMainView.MessageDirection?
+    let customInstruction: String
     let onInsertText: (String) -> Void
     let onDeleteBackward: () -> Void
+    let onRegenerate: (KeyboardMainView.MessageDirection?, String) -> Void
     let onClose: () -> Void
     
     @State private var messages: [String] = []
-    @State private var confirmedIndices: Set<Int> = []
+    @State private var sentIndices: Set<Int> = []
     @State private var showTypingKeyboard: Bool = false
     @State private var regeneratingIndex: Int? = nil
+    @State private var showDirectionEditor = false
     
-    private var allConfirmed: Bool {
-        messages.count > 0 && confirmedIndices.count == messages.count
+    // Local direction state for regen
+    @State private var localDirection: KeyboardMainView.MessageDirection?
+    @State private var localInstruction: String = ""
+    
+    private var nextToSend: Int? {
+        // The next unsent message in sequence order
+        for i in 0..<messages.count {
+            if !sentIndices.contains(i) { return i }
+        }
+        return nil
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            // Header — hide text labels when keyboard is active
+            // Header
             HStack {
                 if !showTypingKeyboard {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Tap to send")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-                        Text("Use icons to edit, type, or send")
-                            .font(.caption)
-                            .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
-                    }
+                    Text("Tap messages to send in order")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
                 
                 Spacer()
                 
-                // Toggle between typing keyboard and pills
+                // Toggle typing keyboard
                 Button(action: { showTypingKeyboard.toggle() }) {
                     Image(systemName: showTypingKeyboard ? "text.bubble.fill" : "keyboard")
-                        .font(.title3)
+                        .font(.body)
                         .foregroundStyle(KeyboardBrand.accent)
                 }
-                .padding(.trailing, 8)
+                .padding(.trailing, 6)
                 
-                // Only show close button when all pills are confirmed
-                if allConfirmed {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
-                    }
+                // Regenerate all
+                Button(action: {
+                    onRegenerate(localDirection, localInstruction)
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.body)
+                        .foregroundStyle(KeyboardBrand.warning)
+                }
+                .padding(.trailing, 6)
+                
+                // Close / done
+                Button(action: onClose) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, showTypingKeyboard ? 4 : 8)
-            .padding(.bottom, showTypingKeyboard ? 4 : 8)
+            .padding(.horizontal, 14)
+            .padding(.top, 8)
+            .padding(.bottom, 6)
             
-            // Conditionally show pills or typing keyboard
             if showTypingKeyboard {
                 TypingKeyboardView(
                     onInsertText: onInsertText,
                     onDeleteBackward: onDeleteBackward
                 )
             } else {
-                // Scrollable message list
+                // Message sequence
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 8) {
                         ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
-                            MessagePill(
+                            MessageSequenceCard(
                                 text: message,
                                 index: index + 1,
-                                isConfirmed: confirmedIndices.contains(index),
+                                isSent: sentIndices.contains(index),
+                                isNext: nextToSend == index,
                                 isRegenerating: regeneratingIndex == index,
-                                onRegenerate: { regenerateLine(at: index) },
-                                onEditKeyboard: {
-                                    showTypingKeyboard = true
-                                },
-                                onSend: {
-                                    // Paste the text
+                                onTap: {
+                                    // Insert text into the active text field
                                     onInsertText(message)
                                     
-                                    // Mark as confirmed with animation
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                        confirmedIndices.insert(index)
+                                        sentIndices.insert(index)
                                     }
                                     
-                                    // Haptic feedback
-                                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                                    generator.impactOccurred()
-                                    
-                                    // Auto-close ONLY when ALL pills are confirmed
-                                    if confirmedIndices.count == messages.count {
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                            onClose()
-                                        }
-                                    }
-                                }
+                                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                },
+                                onRegenerate: { regenerateLine(at: index) }
                             )
                         }
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 14)
                     .padding(.bottom, 8)
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 190)
             }
         }
         .onAppear {
             if messages.isEmpty {
                 messages = initialMessages
             }
+            localDirection = selectedDirection
+            localInstruction = customInstruction
         }
     }
     
     // MARK: - Regenerate Single Line
     
     private func regenerateLine(at index: Int) {
-        guard regeneratingIndex == nil else { return } // Prevent concurrent regens
+        guard regeneratingIndex == nil else { return }
         regeneratingIndex = index
         
         Task {
@@ -782,95 +824,88 @@ struct ResultsView: View {
                         messages[index] = result.text
                     }
                     regeneratingIndex = nil
-                    
-                    // Haptic feedback
-                    let generator = UIImpactFeedbackGenerator(style: .light)
-                    generator.impactOccurred()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 }
             } catch {
                 print("[Keyboard] Regen error: \(error)")
-                await MainActor.run {
-                    regeneratingIndex = nil
-                }
+                await MainActor.run { regeneratingIndex = nil }
             }
         }
     }
 }
 
-// MARK: - Message Pill (with 3 action icons)
+// MARK: - Message Sequence Card
 
-struct MessagePill: View {
+struct MessageSequenceCard: View {
     let text: String
     let index: Int
-    let isConfirmed: Bool
+    let isSent: Bool
+    let isNext: Bool
     let isRegenerating: Bool
+    let onTap: () -> Void
     let onRegenerate: () -> Void
-    let onEditKeyboard: () -> Void
-    let onSend: () -> Void
     
     var body: some View {
-        HStack(spacing: 8) {
-            // Order indicator
-            Text("\(index)")
-                .font(.caption.weight(.bold))
-                .foregroundStyle(.white)
-                .frame(width: 22, height: 22)
-                .background(isConfirmed ? KeyboardBrand.success : KeyboardBrand.accent)
+        Button(action: {
+            if !isSent { onTap() }
+        }) {
+            HStack(spacing: 10) {
+                // Order indicator
+                ZStack {
+                    if isSent {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("\(index)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .background(isSent ? KeyboardBrand.success : (isNext ? KeyboardBrand.accent : KeyboardBrand.keyboardTextSecondary.opacity(0.5)))
                 .clipShape(Circle())
-            
-            // Message text - takes available space
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(.black)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            // Action icons (right side)
-            if isConfirmed {
-                // Show green checkmark when confirmed
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.body)
-                    .foregroundStyle(KeyboardBrand.success)
-            } else {
-                HStack(spacing: 12) {
-                    // 1. Regenerate icon (leftmost)
+                
+                // Message text
+                Text(text)
+                    .font(.subheadline)
+                    .foregroundStyle(isSent ? KeyboardBrand.keyboardTextSecondary : .white)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .strikethrough(isSent, color: KeyboardBrand.keyboardTextSecondary)
+                
+                // Regen button (only for unsent)
+                if !isSent {
                     Button(action: onRegenerate) {
                         if isRegenerating {
                             ProgressView()
-                                .scaleEffect(0.7)
+                                .scaleEffect(0.6)
                                 .frame(width: 20, height: 20)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(KeyboardBrand.warning)
                         }
                     }
                     .disabled(isRegenerating)
-                    
-                    // 2. Edit/keyboard icon (middle)
-                    Button(action: onEditKeyboard) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(KeyboardBrand.accent)
-                    }
-                    
-                    // 3. Send icon (rightmost)
-                    Button(action: onSend) {
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(KeyboardBrand.success)
-                    }
                 }
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isNext && !isSent ? KeyboardBrand.accent.opacity(0.15) : KeyboardBrand.keyboardCard)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isNext && !isSent ? KeyboardBrand.accent.opacity(0.4) : Color.clear, lineWidth: 1)
+            )
+            .opacity(isSent ? 0.5 : 1.0)
+            .opacity(isRegenerating ? 0.6 : 1.0)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
-        .opacity(isRegenerating ? 0.6 : 1.0)
-        .frame(minHeight: 50)
+        .buttonStyle(.plain)
+        .disabled(isSent)
     }
 }
 
@@ -888,29 +923,19 @@ struct TypingKeyboardView: View {
     
     var body: some View {
         VStack(spacing: 5) {
-            // Row 1 — edge to edge
             HStack(spacing: 4) {
                 ForEach(row1, id: \.self) { key in
-                    KeyButton(
-                        label: isShiftActive ? key : key.lowercased(),
-                        onTap: { insertKey(key) }
-                    )
+                    KeyButton(label: isShiftActive ? key : key.lowercased()) { insertKey(key) }
                 }
             }
             
-            // Row 2 — edge to edge
             HStack(spacing: 4) {
                 ForEach(row2, id: \.self) { key in
-                    KeyButton(
-                        label: isShiftActive ? key : key.lowercased(),
-                        onTap: { insertKey(key) }
-                    )
+                    KeyButton(label: isShiftActive ? key : key.lowercased()) { insertKey(key) }
                 }
             }
             
-            // Row 3 — shift + letters + backspace, all edge to edge
             HStack(spacing: 4) {
-                // Shift key — stretches to fill
                 Button(action: { isShiftActive.toggle() }) {
                     Image(systemName: isShiftActive ? "shift.fill" : "shift")
                         .font(.system(size: 16, weight: .medium))
@@ -922,13 +947,9 @@ struct TypingKeyboardView: View {
                 }
                 
                 ForEach(row3, id: \.self) { key in
-                    KeyButton(
-                        label: isShiftActive ? key : key.lowercased(),
-                        onTap: { insertKey(key) }
-                    )
+                    KeyButton(label: isShiftActive ? key : key.lowercased()) { insertKey(key) }
                 }
                 
-                // Backspace key — stretches to fill, flush right
                 Button(action: onDeleteBackward) {
                     Image(systemName: "delete.left")
                         .font(.system(size: 16, weight: .medium))
@@ -940,9 +961,7 @@ struct TypingKeyboardView: View {
                 }
             }
             
-            // Row 4 — space + return, centered and narrower
             HStack(spacing: 6) {
-                // Space bar
                 Button(action: { onInsertText(" ") }) {
                     Text("space")
                         .font(.system(size: 14, weight: .medium))
@@ -953,7 +972,6 @@ struct TypingKeyboardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 
-                // Return key
                 Button(action: { onInsertText("\n") }) {
                     Text("return")
                         .font(.system(size: 14, weight: .medium))
@@ -963,7 +981,7 @@ struct TypingKeyboardView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-            .padding(.horizontal, 36) // Indent so bottom row is narrower than letter rows
+            .padding(.horizontal, 36)
         }
         .padding(.horizontal, 3)
         .padding(.top, 4)
@@ -973,15 +991,8 @@ struct TypingKeyboardView: View {
     private func insertKey(_ key: String) {
         let character = isShiftActive ? key : key.lowercased()
         onInsertText(character)
-        
-        // Auto-disable shift after typing
-        if isShiftActive {
-            isShiftActive = false
-        }
-        
-        // Haptic feedback
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
+        if isShiftActive { isShiftActive = false }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
 
@@ -1026,14 +1037,10 @@ struct ReturningHomeView: View {
                     .opacity(checkmarkOpacity)
             }
             
-            Text("Messages sent!")
+            Text("Done!")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 .opacity(checkmarkOpacity)
-            
-            ProgressView()
-                .tint(KeyboardBrand.accent)
-                .padding(.top, 4)
             
             Spacer()
         }
@@ -1090,120 +1097,6 @@ struct ErrorView: View {
         .padding(.vertical, 16)
     }
 }
-
-// MARK: - Match Row (for vertical list)
-
-struct MatchRow: View {
-    let match: MatchProfile
-    let onTapMessages: () -> Void
-    let onTapUpdate: () -> Void
-    
-    @State private var showUpdatePicker = false
-    @State private var selectedVideo: PhotosPickerItem?
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(KeyboardBrand.accent)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(match.name?.prefix(1).uppercased() ?? "?")
-                        .font(.headline.weight(.bold))
-                        .foregroundStyle(.white)
-                )
-            
-            // Name and info
-            VStack(alignment: .leading, spacing: 2) {
-                Text(match.name ?? "Unknown")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-                
-                if let interests = match.interests.first {
-                    Text(interests)
-                        .font(.caption)
-                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
-                        .lineLimit(1)
-                }
-            }
-            
-            Spacer()
-            
-            // Action buttons
-            HStack(spacing: 8) {
-                // Update conversation button
-                PhotosPicker(selection: $selectedVideo, matching: .videos) {
-                    Image(systemName: "message.badge.filled.fill")
-                        .font(.body)
-                        .foregroundStyle(KeyboardBrand.warning)
-                        .frame(width: 36, height: 36)
-                        .background(KeyboardBrand.warning.opacity(0.15))
-                        .clipShape(Circle())
-                }
-                .onChange(of: selectedVideo) { _, newItem in
-                    if let item = newItem {
-                        NotificationCenter.default.post(
-                            name: .processConversationVideo,
-                            object: nil,
-                            userInfo: ["item": item, "match": match]
-                        )
-                        selectedVideo = nil
-                    }
-                }
-                
-                // View saved messages button
-                Button(action: onTapMessages) {
-                    Image(systemName: "text.bubble.fill")
-                        .font(.body)
-                        .foregroundStyle(KeyboardBrand.accent)
-                        .frame(width: 36, height: 36)
-                        .background(KeyboardBrand.accentLight.opacity(0.3))
-                        .clipShape(Circle())
-                }
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(KeyboardBrand.keyboardCard)
-        .clipShape(RoundedRectangle(cornerRadius: KeyboardBrand.radiusMedium))
-    }
-}
-
-// Notification for conversation video
-extension Notification.Name {
-    static let processConversationVideo = Notification.Name("processConversationVideo")
-}
-
-// MARK: - Match Chip (keeping for compatibility)
-
-struct MatchChip: View {
-    let match: MatchProfile
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(LinearGradient(colors: [.pink, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 24, height: 24)
-                    .overlay(
-                        Text(match.name?.prefix(1).uppercased() ?? "?")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.white)
-                    )
-                
-                Text(match.name ?? "Unknown")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray5))
-            .clipShape(Capsule())
-        }
-    }
-}
-
 
 // MARK: - Video Transferable
 

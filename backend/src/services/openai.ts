@@ -58,9 +58,10 @@ export async function generateMessages(
     tone?: string;
     maxChars?: number;
     conversationContext?: string;
+    direction?: string;
   } = {}
 ): Promise<{ messages: GeneratedMessage[]; reasoning?: string | MessageReasoning }> {
-  const { tone = 'playful', maxChars = 300, conversationContext } = options;
+  const { tone = 'playful', maxChars = 300, conversationContext, direction } = options;
 
   // Build the prompt with user and match context
   const userContext = buildUserContext(userProfile);
@@ -71,6 +72,11 @@ export async function generateMessages(
   let prompt: string;
   let userMessage: string;
 
+  // Build direction instruction if provided
+  const directionInstruction = direction 
+    ? `\n\nUSER'S DIRECTION FOR THIS MESSAGE:\n${direction}\nIncorporate this direction into your message strategy. If the user wants something specific (e.g. "schedule a date", "be funny", "get her to grab coffee"), make that the focus.`
+    : '';
+
   if (conversationContext && conversationContext.length > 50) {
     // Use conversation follow-up prompt
     prompt = CONVERSATION_FOLLOWUP_PROMPT
@@ -80,7 +86,7 @@ export async function generateMessages(
       .replace('{tone}', tone)
       .replace(/\{additionalBoundaries\}/g, constraints);
     
-    userMessage = 'Generate follow-up messages based on this conversation.';
+    userMessage = 'Generate follow-up messages based on this conversation.' + directionInstruction;
   } else {
     // Use opener prompt
     prompt = MESSAGE_GENERATION_PROMPT
@@ -90,7 +96,7 @@ export async function generateMessages(
       .replace('{maxChars}', maxChars.toString())
       .replace('{additionalBoundaries}', constraints);
     
-    userMessage = 'Generate opener messages for this match.';
+    userMessage = 'Generate opener messages for this match.' + directionInstruction;
   }
 
   const response = await getOpenAI().chat.completions.create({

@@ -45,6 +45,7 @@ const generateMessagesSchema = z.object({
   tone: z.string().optional(),
   maxChars: z.number().min(50).max(500).optional(),
   conversationContext: z.string().optional(),
+  direction: z.string().optional(), // MVP: user's direction (e.g. "Funny. get her to grab coffee with me")
 });
 
 /**
@@ -63,14 +64,14 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
       });
     }
 
-    const { userProfile, matchProfile, tone, maxChars, conversationContext } = validation.data;
-    console.log(`[message/generate] Generating for: ${matchProfile.name || 'unknown'}, tone: ${userProfile.voiceTone}`);
+    const { userProfile, matchProfile, tone, maxChars, conversationContext, direction } = validation.data;
+    console.log(`[message/generate] Generating for: ${matchProfile.name || 'unknown'}, tone: ${userProfile.voiceTone}, direction: ${direction || 'none'}`);
 
     // Generate messages using OpenAI
     const result = await generateMessages(
       userProfile,
       matchProfile,
-      { tone, maxChars, conversationContext }
+      { tone, maxChars, conversationContext, direction }
     );
 
     // Add IDs to messages

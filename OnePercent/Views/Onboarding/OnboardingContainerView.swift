@@ -6,20 +6,20 @@ struct OnboardingContainerView: View {
     @State private var currentStep = 0
     @State private var navigatingForward = true
     @State private var userProfile = UserProfile(displayName: "")
-    @State private var profileContext: String?
+    
+    // MVP: 3-step onboarding (Welcome → Quick Setup → Keyboard Setup)
+    // Previous flow had ProfileImportView at step 1 and ProfileSetupView at step 2
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Page content — switch replaces TabView to prevent swiping
+            // Page content
             Group {
                 switch currentStep {
                 case 0:
                     WelcomeView(step: currentStep, onContinue: { goTo(1) })
                 case 1:
-                    ProfileImportView(profileContext: $profileContext, step: currentStep, onContinue: { goTo(2) })
+                    QuickSetupView(profile: $userProfile, step: currentStep, onComplete: saveProfileAndContinue)
                 case 2:
-                    ProfileSetupView(profile: $userProfile, step: currentStep, onComplete: saveProfileAndContinue)
-                case 3:
                     KeyboardSetupView(step: currentStep, onContinue: completeOnboarding)
                 default:
                     EmptyView()
@@ -61,12 +61,8 @@ struct OnboardingContainerView: View {
     }
     
     private func saveProfileAndContinue() {
-        // Save profile before keyboard setup step (in case user leaves app for Settings)
-        if let context = profileContext {
-            userProfile.profileContext = context
-        }
         appState.saveUserProfile(userProfile)
-        goTo(3)
+        goTo(2)
     }
     
     private func completeOnboarding() {
