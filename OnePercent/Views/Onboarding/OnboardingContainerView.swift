@@ -3,12 +3,15 @@ import SharedKit
 
 struct OnboardingContainerView: View {
     @EnvironmentObject var appState: AppState
-    @State private var currentStep = 0
+    @State private var currentStep: Int
     @State private var navigatingForward = true
     @State private var userProfile = UserProfile(displayName: "")
     
-    // MVP: 3-step onboarding (Welcome → Quick Setup → Keyboard Setup)
-    // Previous flow had ProfileImportView at step 1 and ProfileSetupView at step 2
+    // Flow: Welcome → ProfileSetup → KeyboardSetup → PersonalityScore
+    
+    init() {
+        _currentStep = State(initialValue: UserDefaults.appGroup.integer(forKey: "onboardingStep"))
+    }
     
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -18,9 +21,11 @@ struct OnboardingContainerView: View {
                 case 0:
                     WelcomeView(step: currentStep, onContinue: { goTo(1) })
                 case 1:
-                    QuickSetupView(profile: $userProfile, step: currentStep, onComplete: saveProfileAndContinue)
+                    ProfileSetupView(profile: $userProfile, step: currentStep, onComplete: saveProfileAndContinue)
                 case 2:
-                    KeyboardSetupView(step: currentStep, onContinue: completeOnboarding)
+                    KeyboardSetupView(step: currentStep, onContinue: { goTo(3) })
+                case 3:
+                    PersonalityScoreView(userName: userProfile.displayName.isEmpty ? "there" : userProfile.displayName, onComplete: completeOnboarding)
                 default:
                     EmptyView()
                 }
@@ -31,8 +36,8 @@ struct OnboardingContainerView: View {
                 removal: .opacity
             ))
             
-            // Back button — visible on step 1+
-            if currentStep > 0 {
+            // Back button — visible on steps 1 and 2
+            if currentStep > 0 && currentStep < 3 {
                 Button(action: goBack) {
                     Image(systemName: "chevron.backward.circle.fill")
                         .font(.system(size: 28))
@@ -53,11 +58,13 @@ struct OnboardingContainerView: View {
     private func goTo(_ step: Int) {
         navigatingForward = step > currentStep
         currentStep = step
+        UserDefaults.appGroup.set(step, forKey: "onboardingStep")
     }
     
     private func goBack() {
         navigatingForward = false
         currentStep = max(0, currentStep - 1)
+        UserDefaults.appGroup.set(currentStep, forKey: "onboardingStep")
     }
     
     private func saveProfileAndContinue() {
@@ -66,6 +73,8 @@ struct OnboardingContainerView: View {
     }
     
     private func completeOnboarding() {
+        appState.saveUserProfile(userProfile)
+        UserDefaults.appGroup.removeObject(forKey: "onboardingStep")
         appState.completeOnboarding()
     }
 }

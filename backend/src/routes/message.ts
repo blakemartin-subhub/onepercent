@@ -8,23 +8,30 @@ export const messageRouter = Router();
 
 // Request validation schemas
 const userProfileSchema = z.object({
-  id: z.string().optional(),
+  id: z.string().default('unknown'),
   displayName: z.string(),
   ageRange: z.string().optional(),
   bio: z.string().optional(),
   voiceTone: z.enum(['playful', 'direct', 'witty', 'warm', 'confident', 'spicy']),
-  voiceTones: z.array(z.string()).optional(),
-  hardBoundaries: z.array(z.string()).default([]),
+  voiceTones: z.array(z.enum(['playful', 'direct', 'witty', 'warm', 'confident', 'spicy'])).optional(),
   datingIntent: z.string().optional(),
   emojiStyle: z.enum(['none', 'light', 'heavy']).default('light'),
   activities: z.array(z.string()).optional(),
   nationalities: z.array(z.string()).optional(),
   firstDateGoal: z.enum(['coffee', 'drinks', 'dinner', 'activity', 'cooking', 'walk_park']).optional(),
-  profileContext: z.string().optional(),
+  // Template-aligned fields
+  canCook: z.boolean().optional(),
+  cookingLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
+  cuisineTypes: z.array(z.string()).optional(),
+  playsMusic: z.boolean().optional(),
+  instruments: z.array(z.string()).optional(),
+  instrumentLevel: z.enum(['learning', 'intermediate', 'advanced']).optional(),
+  outdoorActivities: z.array(z.string()).optional(),
+  localSpots: z.array(z.string()).optional(),
 });
 
 const matchProfileSchema = z.object({
-  matchId: z.string().optional(),
+  matchId: z.string().default('unknown'),
   name: z.string().optional(),
   age: z.number().optional(),
   bio: z.string().optional(),
@@ -46,6 +53,7 @@ const generateMessagesSchema = z.object({
   maxChars: z.number().min(50).max(500).optional(),
   conversationContext: z.string().optional(),
   direction: z.string().optional(), // MVP: user's direction (e.g. "Funny. get her to grab coffee with me")
+  lineMode: z.enum(['one', 'twoThree', 'threePlus']).optional(), // Line count mode: 1 Line / 2-3 Lines / 3+ Lines
 });
 
 /**
@@ -64,14 +72,14 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
       });
     }
 
-    const { userProfile, matchProfile, tone, maxChars, conversationContext, direction } = validation.data;
-    console.log(`[message/generate] Generating for: ${matchProfile.name || 'unknown'}, tone: ${userProfile.voiceTone}, direction: ${direction || 'none'}`);
+    const { userProfile, matchProfile, tone, conversationContext, direction, lineMode } = validation.data;
+    console.log(`[message/generate] Generating for: ${matchProfile.name || 'unknown'}, tone: ${userProfile.voiceTone}, direction: ${direction || 'none'}, lineMode: ${lineMode || 'twoThree'}`);
 
-    // Generate messages using OpenAI
+    // Generate messages using template-driven pipeline
     const result = await generateMessages(
       userProfile,
       matchProfile,
-      { tone, maxChars, conversationContext, direction }
+      { tone, conversationContext, direction, lineMode }
     );
 
     // Add IDs to messages
@@ -97,6 +105,8 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
         if (r.conversationState) parts.push(`Conversation state: ${r.conversationState}`);
         if (r.approach) parts.push(`Approach: ${r.approach}`);
         if (r.nextMove) parts.push(`Next move: ${r.nextMove}`);
+        if (r.templateId) parts.push(`Template: ${r.templateId}`);
+        if (r.categoryUsed) parts.push(`Category: ${r.categoryUsed}`);
         reasoning = parts.join(' | ');
       }
     }
@@ -142,7 +152,7 @@ messageRouter.post('/generate', async (req: Request, res: Response, next: NextFu
 
     console.log(`[message/generate] Successfully generated ${safeMessages.length} messages`);
 
-    return res.json({ messages: safeMessages, reasoning });
+    return res.json({ messages: safeMessages, reasoning, matchedPrompt: result.matchedPrompt });
   } catch (error) {
     console.error('[message/generate] Error:', error);
     next(error);

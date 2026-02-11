@@ -5,8 +5,8 @@ import SharedKit
 actor KeyboardAPIClient {
     static let shared = KeyboardAPIClient()
     
-    // Backend URL - Your Mac's IP address (on iPhone hotspot)
-    private let baseURL = "http://172.20.10.10:3002"
+    // Backend URL - read from shared App Group config (set in main app Settings)
+    private var baseURL: String { BackendConfig.shared.baseURL }
     
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -35,17 +35,19 @@ actor KeyboardAPIClient {
     func generateMessages(
         userProfile: UserProfile,
         matchProfile: MatchProfile,
-        direction: String? = nil
-    ) async throws -> (messages: [GeneratedMessage], reasoning: String?) {
+        direction: String? = nil,
+        lineMode: String? = nil
+    ) async throws -> (messages: [GeneratedMessage], reasoning: String?, matchedPrompt: String?) {
         let request = KeyboardGenerateMessagesRequest(
             userProfile: userProfile,
             matchProfile: matchProfile,
             conversationContext: nil,
-            direction: direction
+            direction: direction,
+            lineMode: lineMode
         )
         
         let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)
-        return (response.messages, response.reasoning)
+        return (response.messages, response.reasoning, response.matchedPrompt)
     }
     
     /// Generate follow-up messages based on conversation context
@@ -53,17 +55,19 @@ actor KeyboardAPIClient {
         userProfile: UserProfile,
         matchProfile: MatchProfile,
         conversationContext: String,
-        direction: String? = nil
-    ) async throws -> (messages: [GeneratedMessage], reasoning: String?) {
+        direction: String? = nil,
+        lineMode: String? = nil
+    ) async throws -> (messages: [GeneratedMessage], reasoning: String?, matchedPrompt: String?) {
         let request = KeyboardGenerateMessagesRequest(
             userProfile: userProfile,
             matchProfile: matchProfile,
             conversationContext: conversationContext,
-            direction: direction
+            direction: direction,
+            lineMode: lineMode
         )
         
         let response: KeyboardGenerateMessagesResponse = try await post("/v1/message/generate", body: request)
-        return (response.messages, response.reasoning)
+        return (response.messages, response.reasoning, response.matchedPrompt)
     }
     
     /// Regenerate a single line in a message sequence
@@ -97,20 +101,63 @@ actor KeyboardAPIClient {
         
         request.httpBody = try encoder.encode(body)
         
-        let (data, response) = try await session.data(for: request)
+        // Retry with exponential backoff (matches main app behavior)
+        return try await performWithRetry(request: request)
+    }
+    
+    private func performWithRetry<R: Decodable>(
+        request: URLRequest,
+        maxRetries: Int = 3
+    ) async throws -> R {
+        var lastError: Error = KeyboardAPIError.invalidResponse
         
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw KeyboardAPIError.invalidResponse
-        }
+        print("[KeyboardAPI] Requesting: \(request.url?.absoluteString ?? "unknown")")
         
-        guard (200...299).contains(httpResponse.statusCode) else {
-            if let errorResponse = try? decoder.decode(KeyboardAPIErrorResponse.self, from: data) {
-                throw KeyboardAPIError.serverError(errorResponse.message)
+        for attempt in 0..<maxRetries {
+            do {
+                print("[KeyboardAPI] Attempt \(attempt + 1)/\(maxRetries)")
+                let (data, response) = try await session.data(for: request)
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw KeyboardAPIError.invalidResponse
+                }
+                
+                switch httpResponse.statusCode {
+                case 200...299:
+                    return try decoder.decode(R.self, from: data)
+                case 429:
+                    // Rate limited - wait and retry
+                    let waitTime = pow(2.0, Double(attempt))
+                    try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                    continue
+                case 500...599:
+                    // Server error - retry with backoff
+                    let waitTime = pow(2.0, Double(attempt))
+                    try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                    continue
+                default:
+                    if let errorResponse = try? decoder.decode(KeyboardAPIErrorResponse.self, from: data) {
+                        throw KeyboardAPIError.serverError(errorResponse.message)
+                    }
+                    throw KeyboardAPIError.httpError(httpResponse.statusCode)
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as KeyboardAPIError {
+                lastError = error
+            } catch {
+                print("[KeyboardAPI] Network error on attempt \(attempt + 1): \(error)")
+                lastError = error
+                // Network error - retry with backoff
+                if attempt < maxRetries - 1 {
+                    let waitTime = pow(2.0, Double(attempt))
+                    try await Task.sleep(nanoseconds: UInt64(waitTime * 1_000_000_000))
+                }
             }
-            throw KeyboardAPIError.httpError(httpResponse.statusCode)
         }
         
-        return try decoder.decode(R.self, from: data)
+        print("[KeyboardAPI] All retries failed. URL: \(request.url?.absoluteString ?? "unknown"), Error: \(lastError)")
+        throw lastError
     }
     
     private func getDeviceToken() -> String {
@@ -176,20 +223,23 @@ struct KeyboardGenerateMessagesRequest: Encodable {
     let matchProfile: MatchProfile
     let conversationContext: String?
     let direction: String? // MVP: user's direction (e.g. "Funny. get her to grab coffee with me")
+    let lineMode: String? // "one" | "twoThree" | "threePlus"
 }
 
 struct KeyboardGenerateMessagesResponse: Decodable {
     let messages: [GeneratedMessage]
     let reasoning: String?
+    let matchedPrompt: String?
     
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         messages = (try? container.decode([GeneratedMessage].self, forKey: .messages)) ?? []
         reasoning = try? container.decode(String.self, forKey: .reasoning)
+        matchedPrompt = try? container.decode(String.self, forKey: .matchedPrompt)
     }
     
     private enum CodingKeys: String, CodingKey {
-        case messages, reasoning
+        case messages, reasoning, matchedPrompt
     }
 }
 

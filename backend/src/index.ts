@@ -40,6 +40,15 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Backend info endpoint (used by iOS Settings → Backend Info)
+app.get('/info', (req, res) => {
+  res.json({
+    version: '1.0.0',
+    model: 'gpt-5.2',
+    environment: process.env.NODE_ENV || 'development',
+  });
+});
+
 // API routes
 app.use('/v1/profile', profileRouter);
 app.use('/v1/message', messageRouter);
@@ -52,9 +61,26 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`🚀 OnePercent API running on port ${PORT}`);
   console.log(`   Health check: http://localhost:${PORT}/health`);
+  
+  // Log all network interfaces so you know what IP to use on your phone
+  try {
+    const os = require('os');
+    const interfaces = os.networkInterfaces();
+    console.log(`\n📱 Use one of these URLs in the app's Settings → Server:`);
+    for (const [name, addrs] of Object.entries(interfaces)) {
+      for (const addr of (addrs as any[])) {
+        if (addr.family === 'IPv4' && !addr.internal) {
+          console.log(`   ${name}: http://${addr.address}:${PORT}`);
+        }
+      }
+    }
+    console.log('');
+  } catch {
+    console.log(`\n📱 Use http://<your-local-ip>:${PORT} in the app's Settings → Server\n`);
+  }
 });
 
 export default app;

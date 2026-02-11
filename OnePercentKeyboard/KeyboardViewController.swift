@@ -8,6 +8,7 @@ class KeyboardViewController: UIInputViewController {
     // MARK: - Properties
     
     private var hostingController: UIHostingController<KeyboardMainView>?
+    private var heightConstraint: NSLayoutConstraint?
     private let store = MatchStore.shared
     
     /// Check if keyboard has full access (for networking)
@@ -49,6 +50,9 @@ class KeyboardViewController: UIInputViewController {
             },
             onOpenApp: { [weak self] in
                 self?.openMainApp()
+            },
+            onRequestHeight: { [weak self] height in
+                self?.updateKeyboardHeight(height)
             }
         )
         
@@ -71,14 +75,25 @@ class KeyboardViewController: UIInputViewController {
         
         self.hostingController = hostingController
         
-        // Set keyboard height
-        let heightConstraint = view.heightAnchor.constraint(equalToConstant: 280)
+        // Set keyboard height (380pt — tighter fit for direction + line mode + text field + internal keyboard)
+        let heightConstraint = view.heightAnchor.constraint(equalToConstant: 380)
         heightConstraint.priority = .defaultHigh
         heightConstraint.isActive = true
+        self.heightConstraint = heightConstraint
     }
     
     private func refreshData() {
         // Data refresh happens in SwiftUI view via MatchStore
+    }
+    
+    private func updateKeyboardHeight(_ height: CGFloat) {
+        guard let heightConstraint = heightConstraint else { return }
+        guard heightConstraint.constant != height else { return }
+        
+        UIView.animate(withDuration: 0.25, delay: 0, options: .curveEaseInOut) {
+            heightConstraint.constant = height
+            self.view.superview?.layoutIfNeeded()
+        }
     }
     
     // MARK: - Text Input Actions

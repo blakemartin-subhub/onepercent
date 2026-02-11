@@ -7,24 +7,36 @@ public struct UserProfile: Codable, Identifiable, Sendable {
     public var ageRange: String?
     public var bio: String?
     public var voiceTone: VoiceTone
-    public var voiceTones: [VoiceTone]  // Multiple tones
-    public var hardBoundaries: [String]
+    public var voiceTones: [VoiceTone]
     public var datingIntent: String?
     public var emojiStyle: EmojiStyle
-    public var profileContext: String?  // OCR'd profile info
-    public var activities: [String]  // What they like to do
-    public var nationalities: [String]  // User's cultural background (Italian, Mexican, etc.)
-    public var firstDateGoal: FirstDateGoal?  // Preferred first date type
+    public var activities: [String]
+    public var nationalities: [String]
+    public var firstDateGoal: FirstDateGoal?
+    
+    // Template-aligned fields (power the template matching system)
+    public var canCook: Bool?
+    public var cookingLevel: CookingLevel?
+    public var cuisineTypes: [String]?
+    public var playsMusic: Bool?
+    public var instruments: [String]?
+    public var instrumentLevel: InstrumentLevel?
+    public var outdoorActivities: [String]?
+    public var localSpots: [String]?
+    
     public var createdAt: Date
     public var updatedAt: Date
     
-    // Coding keys for migration support
     private enum CodingKeys: String, CodingKey {
         case id, displayName, ageRange, bio, voiceTone, voiceTones
-        case hardBoundaries, datingIntent, emojiStyle, profileContext
-        case activities, nationalities, firstDateGoal, createdAt, updatedAt
-        // Legacy key for backward compatibility
-        case ethnicity
+        case datingIntent, emojiStyle
+        case activities, nationalities, firstDateGoal
+        case canCook, cookingLevel, cuisineTypes
+        case playsMusic, instruments, instrumentLevel
+        case outdoorActivities, localSpots
+        case createdAt, updatedAt
+        // Legacy keys
+        case ethnicity, hardBoundaries, profileContext
     }
     
     public init(
@@ -34,13 +46,19 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         bio: String? = nil,
         voiceTone: VoiceTone = .playful,
         voiceTones: [VoiceTone] = [],
-        hardBoundaries: [String] = [],
         datingIntent: String? = nil,
         emojiStyle: EmojiStyle = .light,
-        profileContext: String? = nil,
         activities: [String] = [],
         nationalities: [String] = [],
         firstDateGoal: FirstDateGoal? = nil,
+        canCook: Bool? = nil,
+        cookingLevel: CookingLevel? = nil,
+        cuisineTypes: [String]? = nil,
+        playsMusic: Bool? = nil,
+        instruments: [String]? = nil,
+        instrumentLevel: InstrumentLevel? = nil,
+        outdoorActivities: [String]? = nil,
+        localSpots: [String]? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -50,18 +68,24 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         self.bio = bio
         self.voiceTone = voiceTone
         self.voiceTones = voiceTones
-        self.hardBoundaries = hardBoundaries
         self.datingIntent = datingIntent
         self.emojiStyle = emojiStyle
-        self.profileContext = profileContext
         self.activities = activities
         self.nationalities = nationalities
         self.firstDateGoal = firstDateGoal
+        self.canCook = canCook
+        self.cookingLevel = cookingLevel
+        self.cuisineTypes = cuisineTypes
+        self.playsMusic = playsMusic
+        self.instruments = instruments
+        self.instrumentLevel = instrumentLevel
+        self.outdoorActivities = outdoorActivities
+        self.localSpots = localSpots
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
     
-    // Custom decoder for backward compatibility with old 'ethnicity' field
+    // Backward-compatible decoder (handles old profiles with hardBoundaries, profileContext, ethnicity)
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         
@@ -71,12 +95,21 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         bio = try container.decodeIfPresent(String.self, forKey: .bio)
         voiceTone = try container.decodeIfPresent(VoiceTone.self, forKey: .voiceTone) ?? .playful
         voiceTones = try container.decodeIfPresent([VoiceTone].self, forKey: .voiceTones) ?? []
-        hardBoundaries = try container.decodeIfPresent([String].self, forKey: .hardBoundaries) ?? []
         datingIntent = try container.decodeIfPresent(String.self, forKey: .datingIntent)
         emojiStyle = try container.decodeIfPresent(EmojiStyle.self, forKey: .emojiStyle) ?? .light
-        profileContext = try container.decodeIfPresent(String.self, forKey: .profileContext)
         activities = try container.decodeIfPresent([String].self, forKey: .activities) ?? []
         firstDateGoal = try container.decodeIfPresent(FirstDateGoal.self, forKey: .firstDateGoal)
+        
+        // Template-aligned fields
+        canCook = try container.decodeIfPresent(Bool.self, forKey: .canCook)
+        cookingLevel = try container.decodeIfPresent(CookingLevel.self, forKey: .cookingLevel)
+        cuisineTypes = try container.decodeIfPresent([String].self, forKey: .cuisineTypes)
+        playsMusic = try container.decodeIfPresent(Bool.self, forKey: .playsMusic)
+        instruments = try container.decodeIfPresent([String].self, forKey: .instruments)
+        instrumentLevel = try container.decodeIfPresent(InstrumentLevel.self, forKey: .instrumentLevel)
+        outdoorActivities = try container.decodeIfPresent([String].self, forKey: .outdoorActivities)
+        localSpots = try container.decodeIfPresent([String].self, forKey: .localSpots)
+        
         createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         
@@ -84,14 +117,14 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         if let nats = try container.decodeIfPresent([String].self, forKey: .nationalities) {
             nationalities = nats
         } else if let oldEthnicity = try container.decodeIfPresent(String.self, forKey: .ethnicity) {
-            // Migrate old ethnicity to nationalities (if it's not empty)
             nationalities = oldEthnicity.isEmpty ? [] : [oldEthnicity]
         } else {
             nationalities = []
         }
+        
+        // Legacy fields silently ignored (hardBoundaries, profileContext)
     }
     
-    // Custom encoder (only encode nationalities, not ethnicity)
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         
@@ -101,19 +134,26 @@ public struct UserProfile: Codable, Identifiable, Sendable {
         try container.encodeIfPresent(bio, forKey: .bio)
         try container.encode(voiceTone, forKey: .voiceTone)
         try container.encode(voiceTones, forKey: .voiceTones)
-        try container.encode(hardBoundaries, forKey: .hardBoundaries)
         try container.encodeIfPresent(datingIntent, forKey: .datingIntent)
         try container.encode(emojiStyle, forKey: .emojiStyle)
-        try container.encodeIfPresent(profileContext, forKey: .profileContext)
         try container.encode(activities, forKey: .activities)
         try container.encode(nationalities, forKey: .nationalities)
         try container.encodeIfPresent(firstDateGoal, forKey: .firstDateGoal)
+        try container.encodeIfPresent(canCook, forKey: .canCook)
+        try container.encodeIfPresent(cookingLevel, forKey: .cookingLevel)
+        try container.encodeIfPresent(cuisineTypes, forKey: .cuisineTypes)
+        try container.encodeIfPresent(playsMusic, forKey: .playsMusic)
+        try container.encodeIfPresent(instruments, forKey: .instruments)
+        try container.encodeIfPresent(instrumentLevel, forKey: .instrumentLevel)
+        try container.encodeIfPresent(outdoorActivities, forKey: .outdoorActivities)
+        try container.encodeIfPresent(localSpots, forKey: .localSpots)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 }
 
-/// Voice/tone preference for generated messages
+// MARK: - Enums
+
 public enum VoiceTone: String, Codable, CaseIterable, Sendable {
     case playful = "playful"
     case direct = "direct"
@@ -145,7 +185,6 @@ public enum VoiceTone: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// Emoji usage preference
 public enum EmojiStyle: String, Codable, CaseIterable, Sendable {
     case none = "none"
     case light = "light"
@@ -160,7 +199,6 @@ public enum EmojiStyle: String, Codable, CaseIterable, Sendable {
     }
 }
 
-/// First date goal preference
 public enum FirstDateGoal: String, Codable, CaseIterable, Sendable {
     case coffee = "coffee"
     case drinks = "drinks"
@@ -192,6 +230,34 @@ public enum FirstDateGoal: String, Codable, CaseIterable, Sendable {
     }
 }
 
+public enum CookingLevel: String, Codable, CaseIterable, Sendable {
+    case beginner = "beginner"
+    case intermediate = "intermediate"
+    case advanced = "advanced"
+    
+    public var displayName: String {
+        switch self {
+        case .beginner: return "Beginner"
+        case .intermediate: return "Pretty Good"
+        case .advanced: return "Chef Level"
+        }
+    }
+}
+
+public enum InstrumentLevel: String, Codable, CaseIterable, Sendable {
+    case learning = "learning"
+    case intermediate = "intermediate"
+    case advanced = "advanced"
+    
+    public var displayName: String {
+        switch self {
+        case .learning: return "Learning"
+        case .intermediate: return "Can Play"
+        case .advanced: return "Expert"
+        }
+    }
+}
+
 /// Common activities for dating profiles
 public enum Activity: String, CaseIterable {
     case cooking = "Cooking"
@@ -212,6 +278,10 @@ public enum Activity: String, CaseIterable {
     case foodie = "Foodie"
     case outdoors = "Outdoors"
     case nightlife = "Nightlife"
+    case surfing = "Surfing"
+    case snowboarding = "Snowboarding"
+    case skiing = "Skiing"
+    case rockClimbing = "Rock Climbing"
 }
 
 /// Nationalities/Cultural backgrounds for conversation context
@@ -250,24 +320,4 @@ public enum Nationality: String, CaseIterable {
     case australian = "Australian"
     case canadian = "Canadian"
     case american = "American"
-    
-    /// Cultural traits that can be used in conversation
-    public var culturalTraits: [String] {
-        switch self {
-        case .italian: return ["cooking", "romantic", "passionate", "family-oriented", "good with food & wine"]
-        case .mexican: return ["great cooks", "family values", "festive", "warm", "love good food"]
-        case .irish: return ["great storytellers", "fun at pubs", "witty humor", "charming"]
-        case .german: return ["punctual", "efficient", "beer lovers", "direct"]
-        case .french: return ["romantic", "cultured", "good taste", "love wine & cheese"]
-        case .spanish: return ["passionate", "love to dance", "late nights", "family-oriented"]
-        case .greek: return ["hospitable", "great food", "family values", "love to celebrate"]
-        case .indian: return ["great cooks", "family-oriented", "cultured", "spice lovers"]
-        case .japanese: return ["detail-oriented", "respectful", "great taste", "adventurous eaters"]
-        case .korean: return ["great cooks", "skincare experts", "K-culture", "foodies"]
-        case .brazilian: return ["fun-loving", "great dancers", "warm", "beach vibes"]
-        case .lebanese: return ["amazing cooks", "hospitable", "family-oriented", "love good food"]
-        case .persian: return ["romantic poetry", "great cooks", "cultured", "hospitable"]
-        default: return []
-        }
-    }
 }

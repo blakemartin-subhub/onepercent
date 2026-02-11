@@ -11,6 +11,8 @@
 		17A34F0897BE2D5C208B084C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 259249EF58804B40F7AA4FB0 /* Assets.xcassets */; };
 		18A664F070FE700F36820AAF /* MessagesResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523CA2429D279632C70F993 /* MessagesResultView.swift */; };
 		1FA3DF4CE17892F065097429 /* QuickSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D68D35CEFCB87D434FA18A /* QuickSetupView.swift */; };
+		29C705A8A3F4C24D63E35174 /* DEBUG_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 564E52099FB4406BC4FF5F3A /* DEBUG_GUIDE.md */; };
+		2C3923CB7F2BA6942F53E731 /* PersonalityScoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB4DB0D42B0794746314C489 /* PersonalityScoreView.swift */; };
 		2D46CF783B4D433EBD0AA031 /* SharedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8E7EF8BDBCA904505D490669 /* SharedKit */; };
 		2E692BDAF67E0E0C6EC528A0 /* MatchDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 201E6304B765B8A6EE177362 /* MatchDetailView.swift */; };
 		36DFCECE7B7A139497DF2FDD /* OnePercentApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4B0805B9B186AFD46865EE /* OnePercentApp.swift */; };
@@ -40,7 +42,6 @@
 		D8DBAE3ED4C32EF68138239E /* OnboardingContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */; };
 		E2E9ECBA60AE0E5EBF611856 /* KeyboardOCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E807583B2884090B72657184 /* KeyboardOCRService.swift */; };
 		E540C026D1B21E7F411B48C4 /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C33908835BF14F34A4907E /* OCRService.swift */; };
-		F193986BE5D5F4E5CD546B8C /* ProfileImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBCD44599D310059248C039 /* ProfileImportView.swift */; };
 		FCAD989433D0111898513075 /* OnePercentKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 71ACC4C442B8BCB9EBD889B2 /* OnePercentKeyboard.appex */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		FF87522517048CD3D2747079 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE0F493D010570E70CFDA697 /* ShareViewController.swift */; };
 /* End PBXBuildFile section */
@@ -94,6 +95,7 @@
 		4EA2A4ABC70A8A61376B06A7 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		4EFC93C7FDE19492DDA064C0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		53A4CE6E37036D852EDB9A32 /* KeyboardAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardAPIClient.swift; sourceTree = "<group>"; };
+		564E52099FB4406BC4FF5F3A /* DEBUG_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = DEBUG_GUIDE.md; sourceTree = "<group>"; };
 		64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingContainerView.swift; sourceTree = "<group>"; };
 		65105C8D1080967D86BE00A2 /* OnePercentShare.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePercentShare.entitlements; sourceTree = "<group>"; };
 		6E6B9CCFA881734871109FCD /* KeyboardBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardBrand.swift; sourceTree = "<group>"; };
@@ -105,8 +107,8 @@
 		A19C9D39D1A8C1779002D635 /* VideoProcessingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoProcessingService.swift; sourceTree = "<group>"; };
 		A1EC937784EF1C6539074C3D /* MatchListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchListView.swift; sourceTree = "<group>"; };
 		A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
-		ACBCD44599D310059248C039 /* ProfileImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImportView.swift; sourceTree = "<group>"; };
 		BA93B1AA7DAC711B73520A44 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		BB4DB0D42B0794746314C489 /* PersonalityScoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalityScoreView.swift; sourceTree = "<group>"; };
 		BBC29AC92033E86F63CE96AD /* OnePercent.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OnePercent.entitlements; sourceTree = "<group>"; };
 		BBFDBD2CB8C7BBD9F4B3A9A1 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		BE0F493D010570E70CFDA697 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
@@ -179,7 +181,7 @@
 			children = (
 				EB5D49DF17CD1DDAE8BBF48F /* KeyboardSetupView.swift */,
 				64C6CA2C0A9CAFC51507C7A4 /* OnboardingContainerView.swift */,
-				ACBCD44599D310059248C039 /* ProfileImportView.swift */,
+				BB4DB0D42B0794746314C489 /* PersonalityScoreView.swift */,
 				A8C67BB8672C1518917CB317 /* ProfileSetupView.swift */,
 				C1D68D35CEFCB87D434FA18A /* QuickSetupView.swift */,
 				3B69DD05E995E4A1B9FDF20D /* WelcomeView.swift */,
@@ -287,6 +289,7 @@
 		EB5E82950840E16B9DAE12F0 /* Match */ = {
 			isa = PBXGroup;
 			children = (
+				564E52099FB4406BC4FF5F3A /* DEBUG_GUIDE.md */,
 				201E6304B765B8A6EE177362 /* MatchDetailView.swift */,
 				D6A22AA8A6BDE75F4B43EF7B /* MatchProfileDetailView.swift */,
 				E523CA2429D279632C70F993 /* MessagesResultView.swift */,
@@ -410,6 +413,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				17A34F0897BE2D5C208B084C /* Assets.xcassets in Resources */,
+				29C705A8A3F4C24D63E35174 /* DEBUG_GUIDE.md in Resources */,
 				7FBFC0C1E0786B8A46C01F21 /* LaunchScreen.storyboard in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -442,7 +446,7 @@
 				E540C026D1B21E7F411B48C4 /* OCRService.swift in Sources */,
 				D8DBAE3ED4C32EF68138239E /* OnboardingContainerView.swift in Sources */,
 				36DFCECE7B7A139497DF2FDD /* OnePercentApp.swift in Sources */,
-				F193986BE5D5F4E5CD546B8C /* ProfileImportView.swift in Sources */,
+				2C3923CB7F2BA6942F53E731 /* PersonalityScoreView.swift in Sources */,
 				6C9A97C3973E813C8676B12D /* ProfilePreviewView.swift in Sources */,
 				04E094BE51085202E058670C /* ProfileSetupView.swift in Sources */,
 				1FA3DF4CE17892F065097429 /* QuickSetupView.swift in Sources */,
@@ -487,14 +491,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentShare/OnePercentShare.entitlements;
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp.share;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -507,13 +511,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OnePercent/OnePercent.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercent/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -523,14 +527,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentKeyboard/OnePercentKeyboard.entitlements;
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentKeyboard/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app.keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp.keyboard;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -541,14 +545,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentShare/OnePercentShare.entitlements;
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentShare/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app.share;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp.share;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -561,13 +565,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = OnePercent/OnePercent.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercent/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -577,14 +581,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = OnePercentKeyboard/OnePercentKeyboard.entitlements;
-				DEVELOPMENT_TEAM = N67TH86Q35;
+				DEVELOPMENT_TEAM = 928542ULN4;
 				INFOPLIST_FILE = OnePercentKeyboard/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercent.app.keyboard;
+				PRODUCT_BUNDLE_IDENTIFIER = com.blakemartin.onepercentapp.keyboard;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";

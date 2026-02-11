@@ -9,6 +9,7 @@ struct KeyboardMainView: View {
     let onDeleteBackward: () -> Void
     let onNextKeyboard: () -> Void
     let onOpenApp: () -> Void
+    var onRequestHeight: ((CGFloat) -> Void)? = nil
     
     @State private var processingState: KeyboardState = .idle
     
@@ -23,7 +24,9 @@ struct KeyboardMainView: View {
     
     // Direction state
     @State private var selectedDirection: MessageDirection?
+    @State private var selectedLineMode: MessageLineMode = .twoThreeLines
     @State private var customInstruction: String = ""
+    @State private var showTailoredKeyboard: Bool = false
     
     enum ContentType {
         case profile     // First message / opener
@@ -38,7 +41,7 @@ struct KeyboardMainView: View {
         case parsingProfile
         case direction(name: String)
         case generatingMessages(name: String, step: DraftingStep)
-        case ready(messages: [String], reasoning: String)
+        case ready(messages: [String], reasoning: String, matchedPrompt: String?)
         case returningHome
         case error(String)
         
@@ -68,6 +71,28 @@ struct KeyboardMainView: View {
         }
     }
     
+    enum MessageLineMode: String, CaseIterable {
+        case oneLine = "one"
+        case twoThreeLines = "twoThree"
+        case threePlusLines = "threePlus"
+        
+        var displayLabel: String {
+            switch self {
+            case .oneLine: return "1 Line"
+            case .twoThreeLines: return "2-3 Lines"
+            case .threePlusLines: return "3+ Lines"
+            }
+        }
+        
+        var icon: String {
+            switch self {
+            case .oneLine: return "text.alignleft"
+            case .twoThreeLines: return "text.justify.left"
+            case .threePlusLines: return "text.justify"
+            }
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
             mainContentView
@@ -84,7 +109,38 @@ struct KeyboardMainView: View {
                 processSelectedImages(newItems)
             }
         }
+        .onChange(of: processingState) { _, _ in
+            updateRequestedHeight()
+        }
+        .onChange(of: showTailoredKeyboard) { _, _ in
+            updateRequestedHeight()
+        }
+        .onChange(of: resultsTypingActive) { _, _ in
+            updateRequestedHeight()
+        }
     }
+    
+    private func updateRequestedHeight() {
+        switch processingState {
+        case .ready:
+            if resultsTypingActive {
+                onRequestHeight?(380)
+            } else {
+                onRequestHeight?(280)
+            }
+        case .direction:
+            if showTailoredKeyboard {
+                onRequestHeight?(310)
+            } else {
+                onRequestHeight?(290)
+            }
+        default:
+            onRequestHeight?(380)
+        }
+    }
+    
+    // Tracks if ResultsView typing keyboard is showing (for height updates)
+    @State private var resultsTypingActive: Bool = false
     
     // MARK: - Main Content Router
     
@@ -132,10 +188,11 @@ struct KeyboardMainView: View {
         case .generatingMessages(let name, let step):
             DraftingAnimationView(name: name, step: step)
             
-        case .ready(let messages, let reasoning):
+        case .ready(let messages, let reasoning, let matchedPrompt):
             ResultsView(
                 initialMessages: messages,
                 reasoning: reasoning,
+                matchedPrompt: matchedPrompt,
                 matchProfile: parsedProfile,
                 selectedDirection: selectedDirection,
                 customInstruction: customInstruction,
@@ -147,7 +204,10 @@ struct KeyboardMainView: View {
                     customInstruction = instruction
                     generateMessages()
                 },
-                onClose: { resetToIdle() }
+                onClose: { resetToIdle() },
+                onTypingToggle: { isTyping in
+                    resultsTypingActive = isTyping
+                }
             )
             
         case .returningHome:
@@ -238,42 +298,44 @@ struct KeyboardMainView: View {
                 }
             }
             
-            Spacer()
+            Spacer(minLength: 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.vertical, 8)
     }
     
     // MARK: - State 3: Direction View
     
     private func directionView(name: String) -> some View {
-        VStack(spacing: 10) {
-            // Header with name
+        VStack(spacing: 0) {
+            // Header with name -- pinned near top
             HStack {
-                let label = contentType == .conversation ? "Replying to" : "Opening with"
+                let label = contentType == .conversation ? "Replying to" : "Vibe For"
                 Text("\(label) \(name)")
-                    .font(.subheadline.weight(.semibold))
+                    .font(showTailoredKeyboard ? .subheadline.weight(.bold) : .title3.weight(.bold))
                     .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
                 
                 Spacer()
                 
                 Button(action: { resetToIdle() }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.body)
+                        .font(showTailoredKeyboard ? .caption : .title3)
                         .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
+            .padding(.top, showTailoredKeyboard ? 4 : 6)
+            .padding(.bottom, showTailoredKeyboard ? 8 : 20)
             
             // Direction pills
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: showTailoredKeyboard ? 4 : 10) {
                     ForEach(MessageDirection.allCases, id: \.self) { direction in
                         DirectionPill(
                             direction: direction,
-                            isSelected: selectedDirection == direction
+                            isSelected: selectedDirection == direction,
+                            compact: showTailoredKeyboard
                         ) {
                             if selectedDirection == direction {
                                 selectedDirection = nil
@@ -285,32 +347,103 @@ struct KeyboardMainView: View {
                 }
                 .padding(.horizontal, 16)
             }
+            .padding(.bottom, showTailoredKeyboard ? 6 : 14)
             
-            // Custom instruction text field
+            // Line mode pills -- FULL WIDTH segmented control
             HStack(spacing: 8) {
-                TextField("e.g. get her to grab coffee with me", text: $customInstruction)
-                    .font(.caption)
-                    .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
-                    .tint(KeyboardBrand.accent)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
+                ForEach(MessageLineMode.allCases, id: \.self) { mode in
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            selectedLineMode = mode
+                        }
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: mode.icon)
+                                .font(.system(size: showTailoredKeyboard ? 9 : 13))
+                            Text(mode.displayLabel)
+                                .font(showTailoredKeyboard ? .caption2.weight(.medium) : .subheadline.weight(.semibold))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, showTailoredKeyboard ? 6 : 12)
+                        .background(selectedLineMode == mode ? KeyboardBrand.accent : KeyboardBrand.keyboardCard)
+                        .foregroundStyle(selectedLineMode == mode ? .white : KeyboardBrand.keyboardTextSecondary)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, showTailoredKeyboard ? 6 : 14)
+            
+            // Tailored note text field + generate button
+            HStack(spacing: 8) {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showTailoredKeyboard.toggle()
+                    }
+                }) {
+                    HStack {
+                        Text(customInstruction.isEmpty ? "e.g. get her to grab coffee with me" : customInstruction)
+                            .font(showTailoredKeyboard ? .caption : .subheadline)
+                            .foregroundStyle(customInstruction.isEmpty ? KeyboardBrand.keyboardTextSecondary.opacity(0.6) : KeyboardBrand.keyboardTextPrimary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer()
+                        if !customInstruction.isEmpty {
+                            Button(action: { customInstruction = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(KeyboardBrand.keyboardTextSecondary.opacity(0.5))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, showTailoredKeyboard ? 8 : 12)
                     .background(KeyboardBrand.keyboardCard)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(showTailoredKeyboard ? KeyboardBrand.accent.opacity(0.5) : Color.clear, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
                 
                 // Generate button
-                Button(action: { generateMessages() }) {
+                Button(action: {
+                    showTailoredKeyboard = false
+                    generateMessages()
+                }) {
                     Image(systemName: "sparkles")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(KeyboardBrand.accent)
                         .clipShape(Circle())
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            
+            if !showTailoredKeyboard {
+                Spacer(minLength: 4)
+            }
+            
+            // Internal QWERTY keyboard for tailored note
+            if showTailoredKeyboard {
+                
+                TypingKeyboardView(
+                    onInsertText: { char in
+                        customInstruction.append(char)
+                    },
+                    onDeleteBackward: {
+                        if !customInstruction.isEmpty {
+                            customInstruction.removeLast()
+                        }
+                    }
+                )
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(.easeInOut(duration: 0.25), value: showTailoredKeyboard)
     }
     
     // MARK: - Video Processing
@@ -479,21 +612,24 @@ struct KeyboardMainView: View {
                 
                 // Build direction string from pills + custom text
                 let directionText = buildDirectionString()
+                let lineModeValue = selectedLineMode.rawValue
                 
-                let result: (messages: [GeneratedMessage], reasoning: String?)
+                let result: (messages: [GeneratedMessage], reasoning: String?, matchedPrompt: String?)
                 
                 if contentType == .conversation {
                     result = try await apiClient.generateConversationMessages(
                         userProfile: userProfile,
                         matchProfile: match,
                         conversationContext: ocrText,
-                        direction: directionText
+                        direction: directionText,
+                        lineMode: lineModeValue
                     )
                 } else {
                     result = try await apiClient.generateMessages(
                         userProfile: userProfile,
                         matchProfile: match,
-                        direction: directionText
+                        direction: directionText,
+                        lineMode: lineModeValue
                     )
                 }
                 
@@ -502,7 +638,7 @@ struct KeyboardMainView: View {
                 let reasoning = result.reasoning ?? "Based on their profile"
                 
                 await MainActor.run {
-                    processingState = .ready(messages: messageTexts, reasoning: reasoning)
+                    processingState = .ready(messages: messageTexts, reasoning: reasoning, matchedPrompt: result.matchedPrompt)
                 }
                 
             } catch {
@@ -531,7 +667,9 @@ struct KeyboardMainView: View {
             parsedProfile = nil
             ocrText = ""
             selectedDirection = nil
+            selectedLineMode = .twoThreeLines
             customInstruction = ""
+            showTailoredKeyboard = false
             selectedVideoItem = nil
             selectedImageItems = []
         }
@@ -552,6 +690,7 @@ struct KeyboardMainView: View {
 struct DirectionPill: View {
     let direction: KeyboardMainView.MessageDirection
     let isSelected: Bool
+    var compact: Bool = false
     let action: () -> Void
     
     var body: some View {
@@ -559,15 +698,15 @@ struct DirectionPill: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
         }) {
-            HStack(spacing: 5) {
+            HStack(spacing: compact ? 3 : 6) {
                 Image(systemName: direction.icon)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: compact ? 9 : 13, weight: .medium))
                 Text(direction.rawValue)
-                    .font(.caption.weight(.medium))
+                    .font(compact ? .caption2.weight(.medium) : .subheadline.weight(.medium))
             }
             .foregroundStyle(isSelected ? .white : KeyboardBrand.keyboardTextPrimary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, compact ? 8 : 14)
+            .padding(.vertical, compact ? 5 : 10)
             .background(isSelected ? KeyboardBrand.accent : KeyboardBrand.keyboardCard)
             .clipShape(Capsule())
             .overlay(
@@ -625,7 +764,7 @@ struct ProcessingView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 10)
     }
 }
 
@@ -669,7 +808,7 @@ struct DraftingAnimationView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
-        .padding(.vertical, 16)
+        .padding(.vertical, 10)
         .onAppear { animateDots() }
     }
     
@@ -685,6 +824,7 @@ struct DraftingAnimationView: View {
 struct ResultsView: View {
     let initialMessages: [String]
     let reasoning: String
+    let matchedPrompt: String?
     let matchProfile: MatchProfile?
     let selectedDirection: KeyboardMainView.MessageDirection?
     let customInstruction: String
@@ -692,6 +832,7 @@ struct ResultsView: View {
     let onDeleteBackward: () -> Void
     let onRegenerate: (KeyboardMainView.MessageDirection?, String) -> Void
     let onClose: () -> Void
+    var onTypingToggle: ((Bool) -> Void)? = nil
     
     @State private var messages: [String] = []
     @State private var sentIndices: Set<Int> = []
@@ -704,34 +845,67 @@ struct ResultsView: View {
     @State private var localInstruction: String = ""
     
     private var nextToSend: Int? {
-        // The next unsent message in sequence order
         for i in 0..<messages.count {
             if !sentIndices.contains(i) { return i }
         }
         return nil
     }
     
+    private var allSent: Bool {
+        !messages.isEmpty && sentIndices.count >= messages.count
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Matched prompt context -- Prompt title + Match's Answer
+            if let prompt = matchedPrompt, !prompt.isEmpty, !showTypingKeyboard {
+                VStack(alignment: .leading, spacing: 3) {
+                    let parts = prompt.components(separatedBy: " → ")
+                    let promptTitle = parts.first?.replacingOccurrences(of: "\"", with: "") ?? prompt
+                    let promptAnswer = parts.count > 1 ? parts[1].replacingOccurrences(of: "\"", with: "") : ""
+                    
+                    Text("Prompt: \(promptTitle)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
+                    
+                    if !promptAnswer.isEmpty {
+                        let matchName = matchProfile?.name ?? "Match"
+                        Text("\(matchName)'s Answer: \(promptAnswer)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(KeyboardBrand.keyboardTextPrimary)
+                            .lineLimit(3)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(KeyboardBrand.keyboardCard.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.horizontal, 14)
+                .padding(.top, 8)
+                .padding(.bottom, 4)
+            }
+            
+            // Header row
             HStack {
                 if !showTypingKeyboard {
-                    Text("Tap messages to send in order")
-                        .font(.caption.weight(.medium))
+                    Text("Tap Messages To Send In Order")
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(KeyboardBrand.keyboardTextSecondary)
                 }
                 
                 Spacer()
                 
-                // Toggle typing keyboard
-                Button(action: { showTypingKeyboard.toggle() }) {
+                Button(action: {
+                    showTypingKeyboard.toggle()
+                    onTypingToggle?(showTypingKeyboard)
+                }) {
                     Image(systemName: showTypingKeyboard ? "text.bubble.fill" : "keyboard")
                         .font(.body)
                         .foregroundStyle(KeyboardBrand.accent)
                 }
                 .padding(.trailing, 6)
                 
-                // Regenerate all
                 Button(action: {
                     onRegenerate(localDirection, localInstruction)
                 }) {
@@ -741,7 +915,6 @@ struct ResultsView: View {
                 }
                 .padding(.trailing, 6)
                 
-                // Close / done
                 Button(action: onClose) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.body)
@@ -749,8 +922,8 @@ struct ResultsView: View {
                 }
             }
             .padding(.horizontal, 14)
-            .padding(.top, 8)
-            .padding(.bottom, 6)
+            .padding(.top, matchedPrompt == nil ? 10 : 4)
+            .padding(.bottom, 4)
             
             if showTypingKeyboard {
                 TypingKeyboardView(
@@ -769,13 +942,10 @@ struct ResultsView: View {
                                 isNext: nextToSend == index,
                                 isRegenerating: regeneratingIndex == index,
                                 onTap: {
-                                    // Insert text into the active text field
                                     onInsertText(message)
-                                    
                                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                         sentIndices.insert(index)
                                     }
-                                    
                                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                                 },
                                 onRegenerate: { regenerateLine(at: index) }
@@ -783,11 +953,36 @@ struct ResultsView: View {
                         }
                     }
                     .padding(.horizontal, 14)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
                 }
-                .frame(maxHeight: 190)
+                
+                // Close Chat button -- appears when all messages sent
+                if allSent {
+                    Button(action: onClose) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption.weight(.semibold))
+                            Text("Close Chat")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(KeyboardBrand.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 4)
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            
+            if !allSent && !showTypingKeyboard {
+                Spacer(minLength: 6)
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: allSent)
         .onAppear {
             if messages.isEmpty {
                 messages = initialMessages
@@ -870,8 +1065,8 @@ struct MessageSequenceCard: View {
                 Text(text)
                     .font(.subheadline)
                     .foregroundStyle(isSent ? KeyboardBrand.keyboardTextSecondary : .white)
-                    .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .strikethrough(isSent, color: KeyboardBrand.keyboardTextSecondary)
                 
@@ -1134,7 +1329,8 @@ enum KeyboardProcessingError: Error, LocalizedError {
         case .fullAccessRequired:
             return "Enable Full Access: Settings → Keyboards → OnePercent → Allow Full Access"
         case .serverUnreachable:
-            return "Cannot connect to server. Make sure your Mac is on the same network and the backend is running."
+            let url = BackendConfig.shared.baseURL
+            return "Cannot connect to server at \(url). Check the Server URL in the app's Settings and make sure the backend is running."
         case .networkError(let message):
             return "Network error: \(message)"
         }

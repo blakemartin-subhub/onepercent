@@ -7,9 +7,7 @@ struct RootView: View {
     var body: some View {
         Group {
             if appState.hasCompletedOnboarding {
-                NavigationStack {
-                    AllSetView()
-                }
+                MainTabView()
             } else {
                 OnboardingContainerView()
             }
@@ -157,8 +155,8 @@ struct HowToRow: View {
     }
 }
 
-// MARK: - Old MainTabView (commented out for MVP — preserved for future scaling)
-/*
+// MARK: - Main Tab View
+
 struct MainTabView: View {
     @State private var selectedTab = 0
     
@@ -183,7 +181,6 @@ struct MainTabView: View {
         .tint(Brand.accent)
     }
 }
-*/
 
 #Preview {
     RootView()

@@ -5,8 +5,8 @@ import SharedKit
 actor APIClient {
     static let shared = APIClient()
     
-    // Backend URL - Your Mac's IP address (on iPhone hotspot)
-    private let baseURL = "http://172.20.10.10:3002"
+    // Backend URL - read from shared App Group config so keyboard uses the same URL
+    private var baseURL: String { BackendConfig.shared.baseURL }
     
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -17,8 +17,8 @@ actor APIClient {
     
     private init() {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
+        config.timeoutIntervalForRequest = 60 // Increased from 30 for GPT-4
+        config.timeoutIntervalForResource = 120 // Increased from 60
         self.session = URLSession(configuration: config)
         
         self.decoder = JSONDecoder()
@@ -30,6 +30,83 @@ actor APIClient {
     
     // MARK: - Public API
     
+    /// Check if server is reachable
+    func healthCheck() async throws -> Bool {
+        let url = URL(string: baseURL + "/health")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 5
+        
+        do {
+            let (_, response) = try await session.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                return httpResponse.statusCode == 200
+            }
+            return false
+        } catch {
+            print("[APIClient] Health check failed: \(error)")
+            return false
+        }
+    }
+    
+    /// Get backend info including model version
+    func getBackendInfo() async throws -> BackendInfo {
+        let url = URL(string: baseURL + "/info")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        
+        let (data, response) = try await session.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            throw APIError.invalidResponse
+        }
+        
+        return try decoder.decode(BackendInfo.self, from: data)
+    }
+    
+    /// Debug: Get raw response from parse endpoint
+    func debugParseProfile(ocrText: String) async throws -> String {
+        let url = URL(string: baseURL + "/v1/profile/parse")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = await getOrCreateDeviceToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let requestBody = ParseProfileRequest(ocrText: ocrText)
+        let bodyData = try encoder.encode(requestBody)
+        request.httpBody = bodyData
+        
+        print("[APIClient] 🔍 Debug request to: \(url.absoluteString)")
+        print("[APIClient] 🔍 Request body: \(String(data: bodyData, encoding: .utf8) ?? "none")")
+        
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return "❌ Not an HTTP response"
+            }
+            
+            let statusCode = httpResponse.statusCode
+            let responseString = String(data: data, encoding: .utf8) ?? "Unable to decode response data"
+            
+            var result = "📊 Status Code: \(statusCode)\n\n"
+            result += "📝 Headers:\n"
+            for (key, value) in httpResponse.allHeaderFields {
+                result += "  \(key): \(value)\n"
+            }
+            result += "\n📦 Response Body:\n"
+            result += responseString
+            
+            return result
+        } catch {
+            return "❌ Request failed:\n\(error.localizedDescription)\n\nError: \(error)"
+        }
+    }
+    
     /// Parse OCR text into structured profile
     func parseProfile(ocrText: String) async throws -> ParseProfileResponse {
         let request = ParseProfileRequest(ocrText: ocrText)
@@ -40,12 +117,14 @@ actor APIClient {
     func generateMessages(
         userProfile: UserProfile,
         matchProfile: MatchProfile,
-        conversationContext: String? = nil
+        conversationContext: String? = nil,
+        lineMode: String? = nil
     ) async throws -> [GeneratedMessage] {
         let request = GenerateMessagesRequest(
             userProfile: userProfile,
             matchProfile: matchProfile,
-            conversationContext: conversationContext
+            conversationContext: conversationContext,
+            lineMode: lineMode
         )
         
         let response: GenerateMessagesResponse = try await post("/v1/message/generate", body: request)
@@ -65,7 +144,14 @@ actor APIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        request.httpBody = try encoder.encode(body)
+        let encodedBody = try encoder.encode(body)
+        request.httpBody = encodedBody
+        
+        // Log request details
+        print("[APIClient] 📤 POST \(path)")
+        if let bodyString = String(data: encodedBody, encoding: .utf8) {
+            print("[APIClient] Request body: \(bodyString.prefix(500))...")
+        }
         
         // Perform request with retry
         return try await performWithRetry(request: request)
@@ -89,9 +175,41 @@ actor APIClient {
                     throw APIError.invalidResponse
                 }
                 
+                print("[APIClient] ✅ Got response with status: \(httpResponse.statusCode)")
+                print("[APIClient] Response headers: \(httpResponse.allHeaderFields)")
+                
                 switch httpResponse.statusCode {
                 case 200...299:
-                    return try decoder.decode(R.self, from: data)
+                    // Log the raw response
+                    let responseString = String(data: data, encoding: .utf8)
+                    if let responseString = responseString {
+                        print("[APIClient] 📥 Response body: \(responseString)")
+                    }
+                    
+                    do {
+                        let decoded = try decoder.decode(R.self, from: data)
+                        print("[APIClient] ✅ Successfully decoded response")
+                        return decoded
+                    } catch let DecodingError.keyNotFound(key, context) {
+                        print("[APIClient] ❌ Missing key '\(key.stringValue)' - \(context.debugDescription)")
+                        print("[APIClient] Coding path: \(context.codingPath)")
+                        throw APIError.decodingError(DecodingError.keyNotFound(key, context), responseBody: responseString)
+                    } catch let DecodingError.typeMismatch(type, context) {
+                        print("[APIClient] ❌ Type mismatch for type '\(type)' - \(context.debugDescription)")
+                        print("[APIClient] Coding path: \(context.codingPath)")
+                        throw APIError.decodingError(DecodingError.typeMismatch(type, context), responseBody: responseString)
+                    } catch let DecodingError.valueNotFound(type, context) {
+                        print("[APIClient] ❌ Value not found for type '\(type)' - \(context.debugDescription)")
+                        print("[APIClient] Coding path: \(context.codingPath)")
+                        throw APIError.decodingError(DecodingError.valueNotFound(type, context), responseBody: responseString)
+                    } catch let DecodingError.dataCorrupted(context) {
+                        print("[APIClient] ❌ Data corrupted - \(context.debugDescription)")
+                        print("[APIClient] Coding path: \(context.codingPath)")
+                        throw APIError.decodingError(DecodingError.dataCorrupted(context), responseBody: responseString)
+                    } catch {
+                        print("[APIClient] ❌ Unknown decoding error: \(error)")
+                        throw APIError.decodingError(error, responseBody: responseString)
+                    }
                 case 401:
                     // Clear token and retry once
                     deviceToken = nil
@@ -158,11 +276,24 @@ struct GenerateMessagesRequest: Encodable {
     let userProfile: UserProfile
     let matchProfile: MatchProfile
     let conversationContext: String?
+    let lineMode: String? // "one" | "twoThree" | "threePlus"
 }
 
 struct APIErrorResponse: Decodable {
     let message: String
     let code: String?
+}
+
+struct BackendInfo: Decodable {
+    let version: String?
+    let model: String?
+    let environment: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case version
+        case model
+        case environment
+    }
 }
 
 // MARK: - Errors
@@ -173,7 +304,7 @@ enum APIError: Error, LocalizedError {
     case httpError(Int)
     case serverError(String)
     case networkError(Error)
-    case decodingError(Error)
+    case decodingError(Error, responseBody: String?)
     case unknown
     
     var errorDescription: String? {
@@ -188,8 +319,12 @@ enum APIError: Error, LocalizedError {
             return message
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
-        case .decodingError(let error):
-            return "Failed to parse response: \(error.localizedDescription)"
+        case .decodingError(let error, let responseBody):
+            var message = "Failed to parse response: \(error.localizedDescription)"
+            if let body = responseBody {
+                message += "\n\nServer response: \(body.prefix(200))"
+            }
+            return message
         case .unknown:
             return "An unknown error occurred"
         }

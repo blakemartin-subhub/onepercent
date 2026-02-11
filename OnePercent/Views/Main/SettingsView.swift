@@ -6,6 +6,17 @@ struct SettingsView: View {
     @State private var showEditProfile = false
     @State private var showDeleteConfirmation = false
     @State private var showPrivacyInfo = false
+    @State private var serverURL: String = BackendConfig.shared.baseURL
+    @State private var serverStatus: ServerStatus = .unknown
+    @State private var showDebugResponse = false
+    @State private var debugResponse = ""
+    @State private var showBackendInfo = false
+    @State private var backendInfo: BackendInfo?
+    @State private var backendInfoError: String?
+    
+    enum ServerStatus {
+        case unknown, checking, reachable, unreachable
+    }
     
     var body: some View {
         ScrollView {
@@ -45,6 +56,171 @@ struct SettingsView: View {
                         .foregroundStyle(Brand.textSecondary)
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
+                }
+                
+                // Server Section (Development)
+                SettingsSection(title: "Server") {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "server.rack")
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(Brand.accent)
+                                .frame(width: 28, height: 28)
+                            
+                            TextField("http://192.168.1.5:3002", text: $serverURL)
+                                .font(.body)
+                                .foregroundStyle(Brand.textPrimary)
+                                .tint(Brand.accent)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .keyboardType(.URL)
+                                .onSubmit { saveServerURL() }
+                            
+                            // Status indicator
+                            Group {
+                                switch serverStatus {
+                                case .unknown:
+                                    Circle()
+                                        .fill(Brand.textMuted)
+                                        .frame(width: 10, height: 10)
+                                case .checking:
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                case .reachable:
+                                    Circle()
+                                        .fill(Brand.success)
+                                        .frame(width: 10, height: 10)
+                                case .unreachable:
+                                    Circle()
+                                        .fill(Brand.error)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        
+                        // Save + Test button
+                        HStack(spacing: 8) {
+                            Button(action: { saveServerURL() }) {
+                                Text("Save")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Brand.accent)
+                                    .clipShape(Capsule())
+                            }
+                            
+                            Button(action: { testConnection() }) {
+                                Text("Test Connection")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Brand.accent)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Brand.accentLight)
+                                    .clipShape(Capsule())
+                            }
+                            
+                            Button(action: { debugParseEndpoint() }) {
+                                Text("Debug Parse API")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.orange)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.orange.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                            
+                            Button(action: { fetchBackendInfo() }) {
+                                Text("Backend Info")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.purple)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.purple.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                        
+                        // Backend Info Display
+                        if let info = backendInfo {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "info.circle.fill")
+                                        .foregroundStyle(.purple)
+                                    Text("Backend Configuration")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Brand.textPrimary)
+                                }
+                                
+                                if let model = info.model {
+                                    HStack {
+                                        Text("Model:")
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.textSecondary)
+                                        Text(model)
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(Brand.accent)
+                                    }
+                                }
+                                
+                                if let version = info.version {
+                                    HStack {
+                                        Text("Version:")
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.textSecondary)
+                                        Text(version)
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.textPrimary)
+                                    }
+                                }
+                                
+                                if let env = info.environment {
+                                    HStack {
+                                        Text("Environment:")
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.textSecondary)
+                                        Text(env)
+                                            .font(.caption2)
+                                            .foregroundStyle(Brand.textPrimary)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.purple.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                        }
+                        
+                        if let error = backendInfoError {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                    .font(.caption)
+                                Text(error)
+                                    .font(.caption2)
+                                    .foregroundStyle(Brand.textSecondary)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.orange.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 12)
+                        }
+                    }
+                    
+                    Text("Your Mac's local IP + port. The keyboard extension reads this to reach the backend. Run `ipconfig getifaddr en0` in Terminal to find your IP.")
+                        .font(.caption)
+                        .foregroundStyle(Brand.textSecondary)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
                 }
                 
                 // Privacy Section
@@ -111,6 +287,30 @@ struct SettingsView: View {
         .sheet(isPresented: $showPrivacyInfo) {
             PrivacyInfoSheet()
         }
+        .sheet(isPresented: $showDebugResponse) {
+            NavigationStack {
+                ScrollView {
+                    Text(debugResponse)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding()
+                }
+                .navigationTitle("Server Response")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { showDebugResponse = false }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {
+                            UIPasteboard.general.string = debugResponse
+                        }) {
+                            Image(systemName: "doc.on.doc")
+                        }
+                    }
+                }
+            }
+        }
         .alert("Delete All Data?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -128,6 +328,79 @@ struct SettingsView: View {
     private func openKeyboardSettings() {
         if let url = URL(string: UIApplication.openSettingsURLString) {
             UIApplication.shared.open(url)
+        }
+    }
+    
+    private func saveServerURL() {
+        let trimmed = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        BackendConfig.shared.baseURL = trimmed
+        print("[Settings] Backend URL saved: \(trimmed)")
+        testConnection()
+    }
+    
+    private func testConnection() {
+        serverStatus = .checking
+        let urlString = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        Task {
+            guard let url = URL(string: urlString + "/health") else {
+                await MainActor.run { serverStatus = .unreachable }
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 5
+            
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                    await MainActor.run { serverStatus = .reachable }
+                } else {
+                    await MainActor.run { serverStatus = .unreachable }
+                }
+            } catch {
+                print("[Settings] Connection test failed: \(error.localizedDescription)")
+                await MainActor.run { serverStatus = .unreachable }
+            }
+        }
+    }
+    
+    private func debugParseEndpoint() {
+        debugResponse = "⏳ Loading..."
+        showDebugResponse = true
+        
+        Task {
+            do {
+                let response = try await APIClient.shared.debugParseProfile(ocrText: "Test profile: John, 25, likes hiking")
+                await MainActor.run {
+                    debugResponse = response
+                }
+            } catch {
+                await MainActor.run {
+                    debugResponse = "❌ Error calling debug endpoint:\n\n\(error.localizedDescription)\n\nFull error:\n\(error)"
+                }
+            }
+        }
+    }
+    
+    private func fetchBackendInfo() {
+        backendInfoError = nil
+        backendInfo = nil
+        
+        Task {
+            do {
+                let info = try await APIClient.shared.getBackendInfo()
+                await MainActor.run {
+                    backendInfo = info
+                    print("[Settings] ✅ Backend Info - Model: \(info.model ?? "unknown"), Version: \(info.version ?? "unknown")")
+                }
+            } catch {
+                await MainActor.run {
+                    backendInfoError = "Failed to fetch backend info. Make sure your backend has an /info endpoint that returns {\"model\": \"gpt-4o\", \"version\": \"1.0.0\", \"environment\": \"development\"}"
+                    print("[Settings] ❌ Backend Info Error: \(error.localizedDescription)")
+                }
+            }
         }
     }
     

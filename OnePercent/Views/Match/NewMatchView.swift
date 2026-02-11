@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import SharedKit
 import AVFoundation
+import UniformTypeIdentifiers
 
 struct NewMatchView: View {
     @Environment(\.dismiss) var dismiss
@@ -129,7 +130,16 @@ struct NewMatchView: View {
     }
     
     private func startVideoProcessing(videoURL: URL, clearInboxAfter: Bool = false) {
-        print("[NewMatchView] Starting video processing for: \(videoURL)")
+        print("[NewMatchView] 🎬 Starting video processing for: \(videoURL)")
+        print("[NewMatchView] Video path: \(videoURL.path())")
+        print("[NewMatchView] Video exists: \(FileManager.default.fileExists(atPath: videoURL.path()))")
+        
+        if FileManager.default.fileExists(atPath: videoURL.path()) {
+            let attrs = try? FileManager.default.attributesOfItem(atPath: videoURL.path())
+            let fileSize = attrs?[.size] as? UInt64 ?? 0
+            print("[NewMatchView] Video file size: \(fileSize) bytes (\(Double(fileSize) / 1024.0 / 1024.0) MB)")
+        }
+        
         currentStep = .processing
         isProcessing = true
         ocrProgress = 0
@@ -143,13 +153,16 @@ struct NewMatchView: View {
                 let text = try await videoService.extractTextFromVideo(at: videoURL) { progress, status in
                     Task { @MainActor in
                         ocrProgress = progress * 0.5
+                        print("[NewMatchView] 📊 Video extraction progress: \(Int(progress * 100))% - \(status)")
                     }
                 }
                 
-                print("[NewMatchView] Extracted text length: \(text.count) characters")
+                print("[NewMatchView] ✅ Extracted text length: \(text.count) characters")
+                print("[NewMatchView] Text preview: \(text.prefix(200))...")
                 
                 // Clear inbox after video frames have been extracted
                 if clearInboxAfter {
+                    print("[NewMatchView] Clearing share inbox...")
                     MatchStore.shared.clearShareInbox()
                 }
                 
@@ -159,11 +172,11 @@ struct NewMatchView: View {
                 }
                 
                 // Parse profile with AI
-                print("[NewMatchView] Parsing profile with AI...")
+                print("[NewMatchView] 🤖 Parsing profile with AI...")
                 let apiClient = APIClient.shared
                 let parseResponse = try await apiClient.parseProfile(ocrText: text)
                 
-                print("[NewMatchView] Profile parsed successfully: \(parseResponse.name ?? "unknown")")
+                print("[NewMatchView] ✅ Profile parsed successfully: \(parseResponse.name ?? "unknown")")
                 
                 await MainActor.run {
                     ocrProgress = 1.0
@@ -172,7 +185,13 @@ struct NewMatchView: View {
                     isProcessing = false
                 }
             } catch {
-                print("[NewMatchView] Video processing error: \(error)")
+                print("[NewMatchView] ❌ Video processing error: \(error)")
+                print("[NewMatchView] Error type: \(type(of: error))")
+                if let nsError = error as NSError? {
+                    print("[NewMatchView] Error domain: \(nsError.domain), code: \(nsError.code)")
+                    print("[NewMatchView] Error userInfo: \(nsError.userInfo)")
+                }
+                
                 // Clean up even on error
                 if clearInboxAfter {
                     MatchStore.shared.clearShareInbox()
@@ -196,6 +215,7 @@ struct NewMatchView: View {
         Task {
             do {
                 // OCR
+                print("[NewMatchView] Starting OCR...")
                 let ocrService = OCRService()
                 let text = try await ocrService.recognizeText(
                     from: selectedImages,
@@ -206,14 +226,23 @@ struct NewMatchView: View {
                     }
                 )
                 
+                print("[NewMatchView] OCR completed. Text length: \(text.count)")
+                
                 await MainActor.run {
                     ocrText = text
                     ocrProgress = 0.5
                 }
                 
                 // Parse profile with AI
+                print("[NewMatchView] Starting AI parsing...")
                 let apiClient = APIClient.shared
-                let parseResponse = try await apiClient.parseProfile(ocrText: text)
+                
+                // Add a timeout wrapper
+                let parseResponse = try await withTimeout(seconds: 90) {
+                    try await apiClient.parseProfile(ocrText: text)
+                }
+                
+                print("[NewMatchView] AI parsing completed successfully")
                 
                 await MainActor.run {
                     ocrProgress = 1.0
@@ -221,7 +250,15 @@ struct NewMatchView: View {
                     currentStep = .reviewProfile
                     isProcessing = false
                 }
+            } catch is TimeoutError {
+                print("[NewMatchView] Request timed out")
+                await MainActor.run {
+                    errorMessage = "Request timed out. The server took too long to respond. Please try again."
+                    currentStep = .selectImages
+                    isProcessing = false
+                }
             } catch {
+                print("[NewMatchView] Processing error: \(error)")
                 await MainActor.run {
                     errorMessage = "Failed to process images: \(error.localizedDescription)"
                     currentStep = .selectImages
@@ -446,15 +483,31 @@ struct ImageSelectionView: View {
     }
     
     private func loadVideo(from item: PhotosPickerItem) {
+        print("[ImageSelectionView] 🎥 Starting video load...")
         Task {
             do {
-                if let movie = try await item.loadTransferable(type: VideoTransferable.self) {
+                print("[ImageSelectionView] 🎥 Loading transferable Movie type...")
+                if let movie = try await item.loadTransferable(type: Movie.self) {
+                    print("[ImageSelectionView] ✅ Video loaded successfully!")
+                    print("[ImageSelectionView] Video URL: \(movie.url)")
+                    print("[ImageSelectionView] Video exists: \(FileManager.default.fileExists(atPath: movie.url.path()))")
+                    
+                    if FileManager.default.fileExists(atPath: movie.url.path()) {
+                        let attrs = try? FileManager.default.attributesOfItem(atPath: movie.url.path())
+                        let fileSize = attrs?[.size] as? UInt64 ?? 0
+                        print("[ImageSelectionView] Video file size: \(fileSize) bytes")
+                    }
+                    
                     await MainActor.run {
                         onVideoSelected?(movie.url)
                     }
+                } else {
+                    print("[ImageSelectionView] ❌ Movie.loadTransferable returned nil")
                 }
             } catch {
-                print("Failed to load video: \(error)")
+                print("[ImageSelectionView] ❌ Failed to load video: \(error)")
+                print("[ImageSelectionView] Error type: \(type(of: error))")
+                print("[ImageSelectionView] Error details: \((error as NSError).domain) code: \((error as NSError).code)")
             }
         }
     }
@@ -464,6 +517,46 @@ struct ImageSelectionView: View {
         if index < selectedItems.count {
             selectedItems.remove(at: index)
         }
+    }
+}
+
+// MARK: - Movie Transferable
+
+struct Movie: Transferable {
+    let url: URL
+    
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { movie in
+            SentTransferredFile(movie.url)
+        } importing: { received in
+            let copy = URL.temporaryDirectory.appending(path: "movie.\(received.file.pathExtension)")
+            if FileManager.default.fileExists(atPath: copy.path()) {
+                try FileManager.default.removeItem(at: copy)
+            }
+            try FileManager.default.copyItem(at: received.file, to: copy)
+            return Self(url: copy)
+        }
+    }
+}
+
+// MARK: - Timeout Helper
+
+struct TimeoutError: Error {}
+
+func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+    try await withThrowingTaskGroup(of: T.self) { group in
+        group.addTask {
+            try await operation()
+        }
+        
+        group.addTask {
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            throw TimeoutError()
+        }
+        
+        let result = try await group.next()!
+        group.cancelAll()
+        return result
     }
 }
 

@@ -31,7 +31,7 @@ targets:
         codeSign: true
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercent.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercentapp
         INFOPLIST_FILE: OnePercent/Info.plist
         CODE_SIGN_ENTITLEMENTS: OnePercent/OnePercent.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
@@ -49,18 +49,23 @@ targets:
               - UISceneConfigurationName: Default Configuration
                 UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
         CFBundleURLTypes:
-          - CFBundleURLName: com.blakemartin.onepercent.app
+          - CFBundleURLName: com.blakemartin.onepercentapp
             CFBundleURLSchemes:
               - onepercent
         NSPhotoLibraryUsageDescription: "OnePercent needs access to your photos to import dating profile screenshots."
         UIBackgroundModes: []
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+        NSLocalNetworkUsageDescription: "OnePercent needs local network access to communicate with the message generation server."
+        NSBonjourServices:
+          - _http._tcp
     entitlements:
       path: OnePercent/OnePercent.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.blakemartin.onepercent.app
+          - group.com.blakemartin.onepercentapp
         keychain-access-groups:
-          - $(AppIdentifierPrefix)com.blakemartin.onepercent.shared
+          - $(AppIdentifierPrefix)com.blakemartin.onepercentapp.shared
 
   OnePercentKeyboard:
     type: app-extension
@@ -73,7 +78,7 @@ targets:
       - package: SharedKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercent.app.keyboard
+        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercentapp.keyboard
         INFOPLIST_FILE: OnePercentKeyboard/Info.plist
         CODE_SIGN_ENTITLEMENTS: OnePercentKeyboard/OnePercentKeyboard.entitlements
         SKIP_INSTALL: YES
@@ -91,13 +96,15 @@ targets:
             RequestsOpenAccess: true
           NSExtensionPointIdentifier: com.apple.keyboard-service
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).KeyboardViewController
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
     entitlements:
       path: OnePercentKeyboard/OnePercentKeyboard.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.blakemartin.onepercent.app
+          - group.com.blakemartin.onepercentapp
         keychain-access-groups:
-          - $(AppIdentifierPrefix)com.blakemartin.onepercent.shared
+          - $(AppIdentifierPrefix)com.blakemartin.onepercentapp.shared
 
   OnePercentShare:
     type: app-extension
@@ -110,7 +117,7 @@ targets:
       - package: SharedKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercent.app.share
+        PRODUCT_BUNDLE_IDENTIFIER: com.blakemartin.onepercentapp.share
         INFOPLIST_FILE: OnePercentShare/Info.plist
         CODE_SIGN_ENTITLEMENTS: OnePercentShare/OnePercentShare.entitlements
         SKIP_INSTALL: YES
@@ -130,7 +137,7 @@ targets:
       path: OnePercentShare/OnePercentShare.entitlements
       properties:
         com.apple.security.application-groups:
-          - group.com.blakemartin.onepercent.app
+          - group.com.blakemartin.onepercentapp
 
 packages:
   SharedKit:

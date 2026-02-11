@@ -1,5 +1,6 @@
 import SwiftUI
 import SharedKit
+import Network
 
 @main
 struct OnePercentApp: App {
@@ -44,23 +45,30 @@ struct OnePercentApp: App {
         }
     }
     
-    /// Triggers the local network permission dialog by making a lightweight request
-    /// This ensures users see the prompt early instead of when they first use the keyboard
+    /// Triggers the local network permission dialog using NWBrowser (Bonjour discovery).
+    /// URLSession alone does not reliably prompt the user. NWBrowser immediately triggers
+    /// the system "Allow Local Network Access" alert on first launch.
     private func triggerLocalNetworkPermission() {
-        Task {
-            // Make a simple request to trigger the local network permission prompt
-            // This will show the "Allow local network access" dialog
-            let url = URL(string: "http://172.20.10.10:3002/health")!
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 2 // Short timeout - we just need to trigger the prompt
-            
-            do {
-                let _ = try await URLSession.shared.data(for: request)
-                print("[OnePercent] Local network check succeeded")
-            } catch {
-                // It's okay if this fails - the permission dialog will still show
-                print("[OnePercent] Local network check: \(error.localizedDescription)")
+        let browser = NWBrowser(for: .bonjour(type: "_http._tcp", domain: nil), using: .tcp)
+        browser.stateUpdateHandler = { state in
+            switch state {
+            case .ready:
+                print("[OnePercent] Local network permission granted")
+                browser.cancel()
+            case .failed(let error):
+                print("[OnePercent] NWBrowser failed: \(error)")
+                browser.cancel()
+            case .cancelled:
+                break
+            default:
+                break
             }
+        }
+        browser.start(queue: .main)
+        
+        // Cancel after a few seconds regardless — we only need the prompt to appear
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+            browser.cancel()
         }
     }
     
@@ -114,6 +122,7 @@ class AppState: ObservableObject {
     func completeOnboarding() {
         hasCompletedOnboarding = true
         UserDefaults.appGroup.set(true, forKey: "hasCompletedOnboarding")
+        UserDefaults.appGroup.removeObject(forKey: "onboardingStep")
     }
     
     func saveUserProfile(_ profile: UserProfile) {
